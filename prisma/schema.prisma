@@ -104,6 +104,7 @@ model User {
   createdAt       DateTime         @default(now())
   filedReleases   ReleaseRequest[] @relation("FiledBy")
   decidedReleases ReleaseRequest[] @relation("DecidedBy")
+  notifiedReleases ReleaseRequest[] @relation("NotifiedBy")
   auditEvents     AuditEvent[]
 
   @@unique([tenantId, email])
@@ -202,9 +203,12 @@ model ReleaseRequest {
   evidence     Json?
   status       ReleaseStatus  @default(FILED)
   disputeUntil DateTime?
+  notifiedById String?
+  notifiedBy   User?          @relation("NotifiedBy", fields: [notifiedById], references: [id], onDelete: Restrict)
   decidedById  String?
   decidedBy    User?          @relation("DecidedBy", fields: [decidedById], references: [id], onDelete: Restrict)
   decidedAt    DateTime?
+  deliveryNote String?
   createdAt    DateTime       @default(now())
   auditEvents  AuditEvent[]
 

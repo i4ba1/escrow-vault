@@ -25,6 +25,9 @@ export default async function PortalHome() {
           <Link href="/portal/verification" className="underline underline-offset-4">
             Verification
           </Link>
+          <Link href="/portal/releases" className="underline underline-offset-4">
+            Releases
+          </Link>
           <Link href="/portal/audit" className="underline underline-offset-4">
             Audit
           </Link>

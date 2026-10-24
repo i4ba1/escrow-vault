@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "smoke:m3": "tsx --env-file=.env tests/smoke/m3.ts",
     "smoke:m4": "tsx --env-file=.env tests/smoke/m4.ts",
+    "smoke:m5": "tsx --env-file=.env tests/smoke/m5.ts",
     "worker:scan": "tsx --env-file=.env scripts/lambda-stub.ts",
     "worker:verify": "tsx --env-file=.env scripts/verify-runs.ts"
   },

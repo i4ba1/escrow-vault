@@ -117,10 +117,59 @@ export const typeDefs = /* GraphQL */ `
     deposits(agreementId: ID): [Deposit!]!
     deposit(id: ID!): Deposit
     auditEvents(limit: Int = 50): [AuditEvent!]!
+    releaseRequests(status: ReleaseStatus): [ReleaseRequest!]!
+    releaseRequest(id: ID!): ReleaseRequest
   }
 
   type Mutation {
     createDeposit(agreementId: ID!): Deposit!
     activateDeposit(depositId: ID!): Deposit!
+    fileClaim(
+      agreementId: ID!
+      trigger: ReleaseTrigger!
+      evidenceSummary: String!
+      evidenceTickets: [String!]
+    ): ReleaseRequest!
+    notifyVendor(requestId: ID!): ReleaseRequest!
+    disputeClaim(requestId: ID!, note: String!): ReleaseRequest!
+    decideRelease(
+      requestId: ID!
+      approve: Boolean!
+      rationale: String!
+    ): ReleaseRequest!
+    recordDelivery(requestId: ID!, handoverRef: String!): ReleaseRequest!
+  }
+
+  enum ReleaseTrigger {
+    INSOLVENCY
+    CESSATION
+    SUPPORT_FAILURE
+    BREACH
+    OWNERSHIP_CHANGE
+    END_OF_LIFE
+    SLA_BREACH
+  }
+
+  enum ReleaseStatus {
+    FILED
+    NOTIFIED
+    DISPUTED
+    UNDISPUTED
+    APPROVED
+    DENIED
+    DELIVERED
+  }
+
+  type ReleaseRequest {
+    id: ID!
+    trigger: ReleaseTrigger!
+    evidence: String
+    status: ReleaseStatus!
+    disputeUntil: String
+    filedByEmail: String
+    decidedByEmail: String
+    deliveryNote: String
+    createdAt: String!
+    agreement: Agreement!
   }
 `;

@@ -7,6 +7,16 @@ import {
   listDeposits,
 } from "../services/deposits";
 import { listAgreements } from "../services/agreements";
+import {
+  decideRelease,
+  disputeClaim,
+  fileClaim,
+  getReleaseDetail,
+  listReleaseRequests,
+  notifyVendor,
+  recordDelivery,
+  type ReleaseWithRelations,
+} from "../services/releases";
 import { AppError } from "../services/errors";
 import type { AppContext } from "./context";
 
@@ -76,6 +86,36 @@ export const resolvers = {
         throw toError(e);
       }
     },
+    releaseRequests: (
+      _: unknown,
+      args: { status?: string },
+      ctx: AppContext,
+    ) => {
+      const statuses = [
+        "FILED",
+        "NOTIFIED",
+        "DISPUTED",
+        "UNDISPUTED",
+        "APPROVED",
+        "DENIED",
+        "DELIVERED",
+      ];
+      const status =
+        args.status && (statuses as string[]).includes(args.status)
+          ? (args.status as ReleaseWithRelations["status"])
+          : undefined;
+      return listReleaseRequests(ctx.tenantId, status)
+        .then((rows) => rows.map(presentRelease))
+        .catch((e: unknown) => {
+          throw toError(e);
+        });
+    },
+    releaseRequest: (_: unknown, args: { id: string }, ctx: AppContext) =>
+      getReleaseDetail(ctx.tenantId, args.id)
+        .then(presentRelease)
+        .catch((e: unknown) => {
+          throw toError(e);
+        }),
   },
   Mutation: {
     // Mutations delegate to services/: identical rules to the Server Actions.
@@ -98,6 +138,79 @@ export const resolvers = {
           assets: d.assets.map(presentAsset),
           verificationRuns: d.verificationRuns.map(presentRun),
         }))
+        .catch((e: unknown) => {
+          throw toError(e);
+        }),
+    fileClaim: (
+      _: unknown,
+      args: {
+        agreementId: string;
+        trigger: string;
+        evidenceSummary: string;
+        evidenceTickets?: string[];
+      },
+      ctx: AppContext,
+    ) =>
+      fileClaim(
+        { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
+        args.agreementId,
+        args.trigger,
+        args.evidenceSummary,
+        args.evidenceTickets ?? [],
+      )
+        .then(presentRelease)
+        .catch((e: unknown) => {
+          throw toError(e);
+        }),
+    notifyVendor: (_: unknown, args: { requestId: string }, ctx: AppContext) =>
+      notifyVendor(
+        { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
+        args.requestId,
+      )
+        .then(presentRelease)
+        .catch((e: unknown) => {
+          throw toError(e);
+        }),
+    disputeClaim: (
+      _: unknown,
+      args: { requestId: string; note: string },
+      ctx: AppContext,
+    ) =>
+      disputeClaim(
+        { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
+        args.requestId,
+        args.note,
+      )
+        .then(presentRelease)
+        .catch((e: unknown) => {
+          throw toError(e);
+        }),
+    decideRelease: (
+      _: unknown,
+      args: { requestId: string; approve: boolean; rationale: string },
+      ctx: AppContext,
+    ) =>
+      decideRelease(
+        { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
+        args.requestId,
+        args.approve,
+        args.rationale,
+      )
+        .then(presentRelease)
+        .catch((e: unknown) => {
+          throw toError(e);
+        }),
+    recordDelivery: (
+      _: unknown,
+      args: { requestId: string; handoverRef: string },
+      ctx: AppContext,
+    ) =>
+      recordDelivery(
+        { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role },
+        args.requestId,
+        args.handoverRef,
+      )
+        .then(presentRelease)
         .catch((e: unknown) => {
           throw toError(e);
         }),
@@ -133,7 +246,34 @@ export const resolvers = {
   Certificate: {
     issuedAt: (parent: { issuedAt: Date }) => parent.issuedAt.toISOString(),
   },
+  ReleaseRequest: {
+    evidence: (parent: { evidence: unknown }) =>
+      parent.evidence == null ? null : JSON.stringify(parent.evidence),
+    disputeUntil: (parent: { disputeUntil: Date | null }) =>
+      iso(parent.disputeUntil),
+    filedByEmail: (parent: { filedBy: { email: string } }) =>
+      parent.filedBy.email,
+    decidedByEmail: (parent: { decidedBy: { email: string } | null }) =>
+      parent.decidedBy?.email ?? null,
+    createdAt: (parent: { createdAt: Date }) => parent.createdAt.toISOString(),
+    agreement: (parent: { agreement: unknown }) => parent.agreement,
+  },
 };
+
+function presentRelease(r: ReleaseWithRelations) {
+  return {
+    id: r.id,
+    trigger: r.trigger,
+    evidence: r.evidence == null ? null : JSON.stringify(r.evidence),
+    status: r.status,
+    disputeUntil: iso(r.disputeUntil),
+    filedByEmail: r.filedBy.email,
+    decidedByEmail: r.decidedBy?.email ?? null,
+    deliveryNote: r.deliveryNote,
+    createdAt: r.createdAt.toISOString(),
+    agreement: r.agreement,
+  };
+}
 
 function presentAsset(a: {
   id: string;
