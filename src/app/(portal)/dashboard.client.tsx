@@ -13,6 +13,12 @@ import {
 import { parse } from "graphql";
 import { Bar, Doughnut } from "react-chartjs-2";
 import { getApolloClient } from "@/lib/apollo-client";
+import {
+  buildStatusDistribution,
+  buildTierOutcomes,
+  countCertificates,
+  countOpenRuns,
+} from "@/lib/dashboard-stats";
 
 ChartJS.register(
   ArcElement,
@@ -69,8 +75,6 @@ interface DashboardData {
   }[];
 }
 
-const TIERS = ["VALIDATED", "VERIFIED", "CERTIFIED"];
-
 function DashboardWidgets() {
   const { data, loading, error } = useQuery<DashboardData>(DASHBOARD_QUERY);
 
@@ -91,18 +95,16 @@ function DashboardWidgets() {
     );
   }
 
-  const statuses = [...new Set(data.deposits.map((d) => d.status))];
-  const statusCounts = statuses.map(
-    (s) => data.deposits.filter((d) => d.status === s).length,
+  const { labels: statuses, counts: statusCounts } = buildStatusDistribution(
+    data.deposits.map((d) => d.status),
   );
   const runs = data.deposits.flatMap((d) => d.verificationRuns);
-  const passByTier = TIERS.map(
-    (t) => runs.filter((r) => r.tier === t && r.status === "PASSED").length,
-  );
-  const failByTier = TIERS.map(
-    (t) => runs.filter((r) => r.tier === t && r.status === "FAILED").length,
-  );
-  const certs = runs.filter((r) => r.certificate).length;
+  const {
+    tiers,
+    passed: passByTier,
+    failed: failByTier,
+  } = buildTierOutcomes(runs);
+  const certs = countCertificates(runs);
 
   return (
     <div className="space-y-6">
@@ -110,7 +112,7 @@ function DashboardWidgets() {
         <StatCard label="Agreements" value={String(data.agreements.length)} href="/portal/deposits" link="Deposits →" />
         <StatCard label="Deposits" value={String(data.deposits.length)} href="/portal/deposits" link="Deposits →" />
         <StatCard label="Certificates" value={String(certs)} href="/portal/verification" link="Verification →" />
-        <StatCard label="Open runs" value={String(runs.filter((r) => r.status === "QUEUED" || r.status === "RUNNING").length)} href="/portal/verification" link="Queue →" />
+        <StatCard label="Open runs" value={String(countOpenRuns(runs))} href="/portal/verification" link="Queue →" />
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <figure className="rounded border border-zinc-200 p-4">
@@ -129,7 +131,7 @@ function DashboardWidgets() {
           <figcaption className="text-sm font-semibold">Verification outcomes by tier</figcaption>
           <Bar
             data={{
-              labels: TIERS,
+              labels: tiers,
               datasets: [
                 { label: "Passed", data: passByTier, backgroundColor: "#15803d" },
                 { label: "Failed", data: failByTier, backgroundColor: "#b91c1c" },

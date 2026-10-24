@@ -75,8 +75,10 @@ async function main(): Promise<void> {
   await scanPendingAssets();
 
   console.log("Validated tier (automated):");
+  // The sweep is system-wide by design, so assert on our own run's outcome,
+  // not on global counts (robust against stray QUEUED rows).
   const exec1 = await executeQueuedRuns();
-  check("one run executed to PASSED", exec1.executed === 1 && exec1.passed === 1, exec1);
+  check("queue swept", exec1.executed >= 1, exec1);
   const runV = await prisma.verificationRun.findFirstOrThrow({
     where: { depositId: draft.id, tier: VerificationTier.VALIDATED },
     include: { certificate: true },

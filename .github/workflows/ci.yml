@@ -1,0 +1,79 @@
+# EscrowVault CI: fast unit gate on every push, full-stack gate (DB + S3 +
+# production build + browsers) for the integration surface.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    name: lint + unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+
+  e2e:
+    name: smokes + build + e2e
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: escrowvault
+          POSTGRES_PASSWORD: escrowvault
+          POSTGRES_DB: escrowvault
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U escrowvault -d escrowvault"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      s3:
+        image: adobe/s3mock:5
+        env:
+          COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: escrow-deposits
+        ports:
+          - 9090:9090
+        options: >-
+          --health-cmd "wget --spider -q http://localhost:9090/favicon.ico"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://escrowvault:escrowvault@localhost:5433/escrowvault?schema=public
+      AUTH_SECRET: ci-dummy-secret-that-is-long-enough-32
+      S3_ENDPOINT: http://localhost:9090
+      S3_BUCKET: escrow-deposits
+      S3_ACCESS_KEY: escrowvault
+      S3_SECRET_KEY: escrowvault
+      S3_REGION: us-east-1
+      NEXT_PUBLIC_APP_URL: http://localhost:3100
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm prisma migrate deploy
+      - run: pnpm db:seed
+      - run: pnpm smoke:m3
+      - run: pnpm smoke:m4
+      - run: pnpm smoke:m5
+      - run: pnpm build
+      - run: pnpm exec playwright install chromium --with-deps
+      - run: pnpm test:e2e

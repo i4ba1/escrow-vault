@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Auth0 from "next-auth/providers/auth0";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { env, requireAuth0 } from "@/lib/env";
+import { env } from "@/lib/env";
 
 // Runtime guard: the JWT re-enters from the (encrypted) cookie on every
 // request, so its app fields are validated, not trusted, before use.
@@ -13,31 +13,29 @@ function isRole(value: unknown): value is Role {
   );
 }
 
-// NOTE: Next.js evaluates route modules at build time to collect segment
-// config, so nothing here may throw at import time. The provider therefore
-// falls back to inert placeholders when Auth0 isn't configured, and the
-// signIn callback below raises the human-readable error on first use.
-const AUTH0_UNCONFIGURED = "https://auth0.unconfigured.local";
+// The provider list is conditional: with a real Auth0 tenant configured the
+// OIDC flow works; without one (local build, pre-tenant demo) no provider is
+// registered, so Auth.js never validates placeholder endpoints and the only
+// observable behavior is "no sign-in available" plus our 401s. This also keeps
+// `next build` green with zero credentials.
+const auth0Providers: ReturnType<typeof Auth0>[] = [];
+if (env.AUTH_AUTH0_ID && env.AUTH_AUTH0_SECRET && env.AUTH_AUTH0_ISSUER) {
+  auth0Providers.push(
+    Auth0({
+      clientId: env.AUTH_AUTH0_ID,
+      clientSecret: env.AUTH_AUTH0_SECRET,
+      issuer: env.AUTH_AUTH0_ISSUER,
+    }),
+  );
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Behind proxies/preview deployments the request host must be trusted for
   // callbacks to resolve; secrets and tokens still never leave the server.
   trustHost: true,
   session: { strategy: "jwt" },
-  providers: [
-    Auth0({
-      clientId: env.AUTH_AUTH0_ID || AUTH0_UNCONFIGURED,
-      clientSecret: env.AUTH_AUTH0_SECRET || "unconfigured",
-      issuer: env.AUTH_AUTH0_ISSUER || AUTH0_UNCONFIGURED,
-    }),
-  ],
+  providers: auth0Providers,
   callbacks: {
-    // First request-time gate: fail with a clear message instead of a
-    // confusing redirect to a placeholder issuer.
-    async signIn() {
-      requireAuth0();
-      return true;
-    },
     // Runs at sign-in (and token refresh): resolve the app identity from our
     // own DB by Auth0 `sub`. Our DB — not the ID token — is the source of
     // truth for role and tenant, so revoked/demoted users lose access.

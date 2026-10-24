@@ -1,6 +1,7 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { DEPOSIT_BUCKET, s3 } from "../lib/s3";
+import { sanitizeFilename } from "../lib/filenames";
 import { prisma } from "../lib/prisma";
 import { logEvent } from "./audit";
 import {
@@ -29,15 +30,6 @@ export interface SignedUpload {
   s3Key: string;
   assetId: string;
   expiresIn: number;
-}
-
-function sanitizeFilename(filename: string): string {
-  const base = filename.split(/[\\/]/).pop() ?? "";
-  const clean = base.replace(/[^\w.\-()[\] ]+/g, "_").slice(0, 180);
-  if (!clean || clean === "." || clean === "..") {
-    throw new InputError("Filename is not usable.");
-  }
-  return clean;
 }
 
 // Mints a presigned PUT URL and reserves the Asset row (scan PENDING) so the

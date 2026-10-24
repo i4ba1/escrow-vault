@@ -97,13 +97,16 @@ export function UploadForm({ depositId }: { depositId: string }) {
           <option value="API_SPEC">API specification</option>
         </select>
       </label>
-      <input
-        type="file"
-        name="file"
-        required
-        disabled={busy}
-        className="block w-full text-zinc-700"
-      />
+      <label className="block">
+        <span className="font-medium">File</span>
+        <input
+          type="file"
+          name="file"
+          required
+          disabled={busy}
+          className="mt-1 block w-full text-zinc-700"
+        />
+      </label>
       <div className="flex items-center gap-3">
         <button
           type="submit"

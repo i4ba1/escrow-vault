@@ -101,7 +101,9 @@ flowchart TB
     AUD --> PG
 ```
 
-Layer rules (enforced by code review + an import-lint rule to be added in M6):
+Layer rules (enforced by code review plus `server-only` at the request boundary —
+`lib/rbac.ts` throws when imported outside RSC, and services stay importable
+from tsx scripts by staying dependency-free):
 
 - `app/**` may import from `components/`, `graphql/client`, `lib/`, and `*.actions.ts` only.
 - `graphql/resolvers` and `*.actions.ts` are thin; all business rules live in `services/`.
@@ -256,7 +258,7 @@ on Deposit; unique `serialNo` on Certificate. Migrations are hand-reviewable SQL
 | Layer | Tool | Covers | Gate |
 |---|---|---|---|
 | Unit | Vitest + React Testing Library | state machines (all transitions incl. illegal ones), RBAC helpers, zod env, form validation | `pnpm test` in CI |
-| Component | Vitest + RTL + MSW | wizard steps, dashboard charts (mocked GraphQL), 403 states | same suite |
+| Component | Vitest + RTL + mocked fetch | wizard steps, upload form, 403 states | same suite |
 | API/e2e | Playwright vs `next start` + Postgres service + S3Mock | happy path deposit→verify→release; RBAC denial; dispute-window expiry (time-shifted seed); idempotent re-submit | CI job, trace on failure |
 | Type/lint | `tsc --noEmit`, ESLint (incl. import-boundary rule §4), Prettier check | layer rules, no secrets in client bundle (grep gate for `process.env` in `*.client.tsx`) | pre-merge |
 
@@ -278,27 +280,37 @@ flowchart LR
 - `docker-compose.yml` reproduces Postgres + S3Mock + Lambda-stub locally; the Lambda
   stub is a drop-in Node script with the same event shape as the real S3 trigger.
 
-## 10. Planned repository layout
+## 10. Repository layout (as built)
 
 ```
 EscrowVault/
-├── .github/workflows/ci.yml
-├── aws/lambda/deposit-scan/      # real Lambda (Node.js 22 runtime)
-├── docs/architecture.md          # this file
-├── prisma/                       # schema.prisma, migrations/, seed.ts
-├── scripts/lambda-stub.mjs       # local S3Mock-polling stand-in for the Lambda
+├── .github/workflows/ci.yml        # lint/unit job + full-stack job (services, smokes, build, e2e)
+├── aws/lambda/deposit-scan/        # (planned) real Lambda calling scanPendingAssets()
+├── docs/architecture.md            # this file
+├── prisma/                         # schema.prisma, migrations/, seed.ts
+├── scripts/
+│   ├── lambda-stub.ts              # local S3Mock-polling stand-in for the Lambda
+│   └── verify-runs.ts              # local stand-in for the verification scheduler
 ├── src/
-│   ├── app/                      # (marketing)/ + (portal)/ + api/
-│   ├── components/               # *.client.tsx only at interactivity leaves
-│   ├── graphql/                  # typeDefs, resolvers, dataloaders, context
-│   ├── services/                 # deposits, verification, releases, audit (rules live here)
-│   ├── state/                    # React Context: tenant/session, wizard
-│   ├── lib/                      # prisma singleton, s3, auth config, env (zod), rbac
-│   └── proxy.ts
-├── tests/e2e/                    # Playwright specs + fixtures
-├── docker-compose.yml
+│   ├── app/
+│   │   ├── (portal)/               # layout gate + dashboard + deposits/verification/releases/audit
+│   │   ├── api/                    # auth/[...nextauth], graphql, uploads/sign
+│   │   └── verify/[serial]/        # public certificate lookup (prerendered + cached)
+│   ├── auth.ts                     # Auth.js v5 + Auth0 (provider registered only when configured)
+│   ├── graphql/                    # typeDefs, resolvers, dataloaders, context
+│   ├── services/                   # deposits, verification, releases, uploads, scan, audit, errors
+│   ├── state/                      # SessionProvider + tenant/role React Context
+│   ├── lib/                        # prisma, s3, env (zod), rbac, apollo-client, http-errors, …
+│   ├── types/                      # next-auth session augmentation
+│   └── proxy.ts                    # edge fast-path redirect (Next 16 proxy convention)
+├── tests/
+│   ├── unit/                       # Vitest + RTL (no DB)
+│   ├── e2e/                        # Playwright public surface + gates (+ skipped authed specs)
+│   └── smoke/                      # tsx service-level lifecycle proofs (DB + S3)
+├── docker-compose.yml              # Postgres 16 + S3Mock + versioned bucket
 ├── .env.example
-└── README.md                     # setup, demo script, decisions log
+├── vitest.config.ts / playwright.config.ts
+└── README.md                       # setup, Auth0 wiring, demo script, JD mapping
 ```
 
 ## 11. Build milestones
