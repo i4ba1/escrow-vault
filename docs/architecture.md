@@ -59,7 +59,7 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph vercel [Vercel project: escrow-vault]
-        MW[Edge Middleware<br/>session check + tenant routing]
+        MW[Edge Proxy (proxy.ts)<br/>session-cookie check]
         WEB[Next.js App Router<br/>RSC pages + Server Actions]
         GQL[Apollo Server<br/>route handler /api/graphql]
         AUTH[Auth.js handlers<br/>/api/auth/...]
@@ -87,7 +87,7 @@ a Lambda stub (plain Node script polling S3Mock), so the full upload→scan loop
 
 ```mermaid
 flowchart TB
-    MW[middleware.ts<br/>edge: require session,<br/>resolve tenant, RBAC pre-check]
+    MW[proxy.ts<br/>edge: cookie-presence check,<br/>fast-path redirect to sign-in]
     MW --> LAYOUT[(portal) layout<br/>TenantProvider + SessionProvider<br/>React Context]
     LAYOUT --> RSC[RSC pages<br/>deposits / verification /<br/>releases / audit]
     RSC --> SA[Server Actions<br/>*.actions.ts<br/>wizard steps, decisions]
@@ -115,7 +115,7 @@ Layer rules (enforced by code review + an import-lint rule to be added in M6):
 ```mermaid
 sequenceDiagram
     participant B as Browser
-    participant M as Edge Middleware
+    participant M as Edge Proxy
     participant A as Auth.js /api/auth
     participant O as Auth0
     participant P as RSC page
@@ -294,7 +294,7 @@ EscrowVault/
 │   ├── services/                 # deposits, verification, releases, audit (rules live here)
 │   ├── state/                    # React Context: tenant/session, wizard
 │   ├── lib/                      # prisma singleton, s3, auth config, env (zod), rbac
-│   └── middleware.ts
+│   └── proxy.ts
 ├── tests/e2e/                    # Playwright specs + fixtures
 ├── docker-compose.yml
 ├── .env.example
@@ -303,7 +303,7 @@ EscrowVault/
 
 ## 11. Build milestones
 
-M1 schema + migration + seed → M2 Auth.js/Auth0 + middleware + RBAC → M3 GraphQL +
+M1 schema + migration + seed → M2 Auth.js/Auth0 + edge proxy + RBAC → M3 GraphQL +
 deposit wizard + presigned upload + Lambda → M4 verification + Chart.js dashboard +
 certificates + audit timeline → M5 release flow with maker-checker → M6 tests + CI +
 Vercel + README/demo.
