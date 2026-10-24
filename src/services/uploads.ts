@@ -10,7 +10,7 @@ import {
   NotFoundError,
 } from "./errors";
 import { DepositStatus, Role, ScanStatus, type Actor } from "./types";
-import type { Asset } from "@prisma/client";
+import { AssetType, type Asset } from "@prisma/client";
 
 export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB
 const UPLOAD_URL_TTL_SECONDS = 15 * 60;
@@ -19,6 +19,7 @@ const SHA256_RE = /^[0-9a-f]{64}$/i;
 export interface RequestUploadInput extends Actor {
   depositId: string;
   filename: string;
+  assetType: string;
   sizeBytes: number;
   sha256: string;
 }
@@ -60,6 +61,10 @@ export async function requestUploadUrl(
     throw new InputError("sha256 must be a 64-character hex digest.");
   }
   const filename = sanitizeFilename(input.filename);
+  const assetTypes = Object.values(AssetType) as string[];
+  if (!assetTypes.includes(input.assetType)) {
+    throw new InputError(`assetType must be one of: ${assetTypes.join(", ")}.`);
+  }
 
   const deposit = await prisma.deposit.findFirst({
     where: { id: input.depositId, agreement: { tenantId: input.tenantId } },
@@ -81,7 +86,7 @@ export async function requestUploadUrl(
   const asset: Asset = await prisma.asset.create({
     data: {
       depositId: deposit.id,
-      type: "SOURCE",
+      type: input.assetType as AssetType,
       filename,
       s3Key,
       sizeBytes: BigInt(input.sizeBytes),

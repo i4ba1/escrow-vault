@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       depositId?: unknown;
       filename?: unknown;
+      assetType?: unknown;
       sizeBytes?: unknown;
       sha256?: unknown;
     };
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
       role: session.user.appRole,
       depositId: typeof body.depositId === "string" ? body.depositId : "",
       filename: typeof body.filename === "string" ? body.filename : "",
+      assetType: typeof body.assetType === "string" ? body.assetType : "",
       sizeBytes: typeof body.sizeBytes === "number" ? body.sizeBytes : NaN,
       sha256: typeof body.sha256 === "string" ? body.sha256 : "",
     });

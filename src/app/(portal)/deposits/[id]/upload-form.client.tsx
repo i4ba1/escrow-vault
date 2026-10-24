@@ -28,9 +28,9 @@ export function UploadForm({ depositId }: { depositId: string }) {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const input = event.currentTarget.elements.namedItem(
-      "file",
-    ) as HTMLInputElement;
+    const form = event.currentTarget;
+    const input = form.elements.namedItem("file") as HTMLInputElement;
+    const typeSelect = form.elements.namedItem("assetType") as HTMLSelectElement;
     const file = input.files?.[0];
     if (!file) return;
     try {
@@ -43,6 +43,7 @@ export function UploadForm({ depositId }: { depositId: string }) {
         body: JSON.stringify({
           depositId,
           filename: file.name,
+          assetType: typeSelect.value,
           sizeBytes: file.size,
           sha256,
         }),
@@ -81,6 +82,21 @@ export function UploadForm({ depositId }: { depositId: string }) {
 
   return (
     <form onSubmit={onSubmit} className="mt-3 flex flex-col gap-3 text-sm">
+      <label className="block">
+        <span className="font-medium">Asset type</span>
+        <select
+          name="assetType"
+          disabled={busy}
+          className="mt-1 block w-full rounded border border-zinc-300 p-2"
+        >
+          <option value="SOURCE">Source code</option>
+          <option value="DATABASE">Database / schema</option>
+          <option value="CONFIG">Configuration</option>
+          <option value="DOCS">Documentation</option>
+          <option value="BUILD_SCRIPT">Build script</option>
+          <option value="API_SPEC">API specification</option>
+        </select>
+      </label>
       <input
         type="file"
         name="file"

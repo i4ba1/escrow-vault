@@ -1,4 +1,7 @@
 import { notFound } from "next/navigation";
+import { requireAppSession } from "@/lib/rbac";
+import { nextTier } from "@/services/verification";
+import { escalateAction } from "../../verification/actions";
 import { activateDepositAction, getPortalDeposit } from "../actions";
 import { UploadForm } from "./upload-form.client";
 
@@ -10,6 +13,7 @@ export default async function DepositDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await requireAppSession();
   const deposit = await getPortalDeposit(id).catch(() => null);
   if (!deposit) notFound();
 
@@ -17,6 +21,16 @@ export default async function DepositDetailPage({
     (deposit.status === "DRAFT" || deposit.status === "UPLOADING") &&
     deposit.assets.length > 0 &&
     deposit.assets.every((a) => a.scanStatus === "PASS");
+
+  const isAgent = session.user.appRole === "AGENT";
+  const upcomingTier =
+    deposit.status === "ACTIVE"
+      ? nextTier(
+          deposit.verificationRuns
+            .filter((r) => r.status === "PASSED")
+            .map((r) => r.tier),
+        )
+      : null;
 
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-8">
@@ -83,6 +97,25 @@ export default async function DepositDetailPage({
           </ul>
         )}
       </section>
+
+      {isAgent && upcomingTier && (
+        <form
+          action={escalateAction.bind(null, deposit.id, upcomingTier)}
+          className="rounded border border-zinc-200 p-4"
+        >
+          <h2 className="font-semibold">Request {upcomingTier} verification</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Opens a {upcomingTier} run for this deposit. Lower tiers must have
+            passed — enforced server-side.
+          </p>
+          <button
+            type="submit"
+            className="mt-3 rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+          >
+            Escalate to {upcomingTier}
+          </button>
+        </form>
+      )}
 
       {canActivate ? (
         <form

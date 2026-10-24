@@ -99,6 +99,7 @@ async function main(): Promise<void> {
     ...depositor,
     depositId: draft.id,
     filename: "smoke-report.bin",
+    assetType: "SOURCE",
     sizeBytes: payload.byteLength,
     sha256,
   });

@@ -30,3 +30,35 @@ export async function logEvent(input: AuditLogInput): Promise<void> {
     },
   });
 }
+
+export interface AuditTimelineEntry {
+  id: string;
+  entity: string;
+  entityId: string;
+  action: string;
+  actorEmail: string | null;
+  at: Date;
+}
+
+// Newest-first timeline, tenant-scoped. The portal audit page and the
+// dashboard activity feed both read through here.
+export async function listAuditEvents(
+  tenantId: string,
+  limit = 100,
+): Promise<AuditTimelineEntry[]> {
+  const take = Math.min(Math.max(limit, 1), 200);
+  const events = await prisma.auditEvent.findMany({
+    where: { tenantId },
+    include: { actor: { select: { email: true } } },
+    orderBy: { at: "desc" },
+    take,
+  });
+  return events.map((e) => ({
+    id: e.id,
+    entity: e.entity,
+    entityId: e.entityId,
+    action: e.action,
+    actorEmail: e.actor?.email ?? null,
+    at: e.at,
+  }));
+}

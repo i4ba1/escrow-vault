@@ -13,21 +13,26 @@
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "db:studio": "prisma studio",
     "smoke:m3": "tsx --env-file=.env tests/smoke/m3.ts",
-    "worker:scan": "tsx --env-file=.env scripts/lambda-stub.ts"
+    "smoke:m4": "tsx --env-file=.env tests/smoke/m4.ts",
+    "worker:scan": "tsx --env-file=.env scripts/lambda-stub.ts",
+    "worker:verify": "tsx --env-file=.env scripts/verify-runs.ts"
   },
   "prisma": {
     "seed": "tsx --env-file=.env prisma/seed.ts"
   },
   "dependencies": {
+    "@apollo/client": "^4.3.5",
     "@apollo/server": "^5.5.1",
     "@aws-sdk/client-s3": "^3.1156.0",
     "@aws-sdk/s3-request-presigner": "^3.1156.0",
     "@prisma/client": "^6.19.3",
+    "chart.js": "^4.6.1",
     "dataloader": "^2.2.3",
     "graphql": "^16.11.0",
     "next": "16.4.3",
     "next-auth": "5.0.0-beta.32",
     "react": "19.3.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
     "zod": "^4.6.7"
