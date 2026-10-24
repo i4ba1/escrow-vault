@@ -1,6 +1,6 @@
 // Pure builders behind the portal dashboard charts. Kept free of React and
 // data-fetching so they unit-test without a browser or database; the client
-// component in (portal)/dashboard.client.tsx only wires them to useQuery.
+// component in app/portal/dashboard.client.tsx only wires them to useQuery.
 export const TIERS = ["VALIDATED", "VERIFIED", "CERTIFIED"] as const;
 
 export interface RunPoint {

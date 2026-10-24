@@ -88,7 +88,7 @@ a Lambda stub (plain Node script polling S3Mock), so the full upload→scan loop
 ```mermaid
 flowchart TB
     MW[proxy.ts<br/>edge: cookie-presence check,<br/>fast-path redirect to sign-in]
-    MW --> LAYOUT[(portal) layout<br/>TenantProvider + SessionProvider<br/>React Context]
+    MW --> LAYOUT[portal layout<br/>TenantProvider + SessionProvider<br/>React Context]
     LAYOUT --> RSC[RSC pages<br/>deposits / verification /<br/>releases / audit]
     RSC --> SA[Server Actions<br/>*.actions.ts<br/>wizard steps, decisions]
     RSC --> AC[Apollo Client<br/>dashboards, detail data<br/>variable shapes]
@@ -293,7 +293,7 @@ EscrowVault/
 │   └── verify-runs.ts              # local stand-in for the verification scheduler
 ├── src/
 │   ├── app/
-│   │   ├── (portal)/               # layout gate + dashboard + deposits/verification/releases/audit
+│   │   ├── portal/                 # layout gate + dashboard + deposits/verification/releases/audit
 │   │   ├── api/                    # auth/[...nextauth], graphql, uploads/sign
 │   │   └── verify/[serial]/        # public certificate lookup (prerendered + cached)
 │   ├── auth.ts                     # Auth.js v5 + Auth0 (provider registered only when configured)

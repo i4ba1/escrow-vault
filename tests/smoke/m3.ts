@@ -57,8 +57,14 @@ async function main(): Promise<void> {
     undefined,
     depositor,
   );
-  const list = (deposits.data as { deposits: unknown[] } | undefined)?.deposits;
-  check("sees seeded deposit with assets + run (DataLoader path)", Array.isArray(list) && list.length === 1, deposits);
+  const list = (deposits.data as { deposits: { version: number; status: string }[] } | undefined)?.deposits;
+  check(
+    "sees seeded deposits incl. v1 ACTIVE (DataLoader path)",
+    Array.isArray(list) &&
+      list.length >= 3 &&
+      list.some((d) => d.version === 1 && d.status === "ACTIVE"),
+    deposits,
+  );
 
   console.log("RBAC on mutations:");
   const forbidden = await gql(
@@ -89,9 +95,20 @@ async function main(): Promise<void> {
   );
 
   console.log("Upload → scan loop:");
-  const agreement = await prisma.agreement.findFirstOrThrow({ where: { tenantId: tenant.id } });
+  const agreement = await prisma.agreement.findFirstOrThrow({
+    where: { tenantId: tenant.id },
+    orderBy: { createdAt: "asc" },
+  });
+  const maxVersion =
+    (
+      await prisma.deposit.findFirst({
+        where: { agreementId: agreement.id },
+        orderBy: { version: "desc" },
+        select: { version: true },
+      })
+    )?.version ?? 0;
   const draft = await createDraftDeposit(depositor, agreement.id);
-  check("draft created at next version", draft.version === 2, draft.version);
+  check("draft created at next version", draft.version === maxVersion + 1, draft.version);
 
   const payload = randomBytes(64 * 1024);
   const sha256 = createHash("sha256").update(payload).digest("hex");

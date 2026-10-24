@@ -12,6 +12,16 @@ triggers with a dispute window, and maker-checker release decisions.
 
 Architecture with diagrams: [`docs/architecture.md`](docs/architecture.md).
 
+## Demo
+
+Seeded portal tour (agent view → deposits → verification → releases → audit →
+public certificate), recorded with Playwright against `pnpm db:seed` data:
+
+![EscrowVault demo: dashboard, deposits, verification, releases, audit, certificate](docs/demo.gif)
+
+The 90-second narrated version of this tour is scripted below; log in with
+the seeded role accounts from “Auth0 setup” to click through it live.
+
 ## Stack
 
 | Layer | Choice |
@@ -103,7 +113,7 @@ The authenticated browser happy path is committed as skipped specs in
 
 ```
 src/
-  app/            (marketing)/ + (portal)/ + api/ + verify/[serial]/
+  app/            portal/ (gated) + api/ + verify/[serial]/ (public)
   components/     (co-located *.client.tsx at interactivity leaves)
   graphql/        typeDefs, resolvers, dataloaders, context
   services/       deposits, verification, releases, uploads, scan, audit, errors

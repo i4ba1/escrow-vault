@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { auth } from "@/auth";
 import { Providers } from "@/state/providers";
@@ -16,6 +17,11 @@ export default async function PortalLayout({
 }: {
   children: ReactNode;
 }) {
+  // Per-request dynamic: the portal is session-gated, so it must never be
+  // statically prerendered (a prerender has no session and would cache a
+  // redirect/404 shell for every visitor). connection() is the Cache
+  // Components escape hatch that forces on-demand rendering.
+  await connection();
   const session = await auth();
   const user = session?.user;
   if (!user?.appUserId || !user?.tenantSlug || !user?.appRole) {

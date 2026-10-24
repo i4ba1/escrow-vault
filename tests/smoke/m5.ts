@@ -36,11 +36,15 @@ async function main(): Promise<void> {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug: "demo" } });
   const users = await prisma.user.findMany({ where: { tenantId: tenant.id } });
   const byRole = Object.fromEntries(users.map((u) => [u.role, u])) as Record<Role, (typeof users)[number]>;
+  const byEmail = Object.fromEntries(users.map((u) => [u.email, u])) as Record<string, (typeof users)[number]>;
   const beneficiary: Actor = { tenantId: tenant.id, userId: byRole.BENEFICIARY.id, role: Role.BENEFICIARY };
   const depositor: Actor = { tenantId: tenant.id, userId: byRole.DEPOSITOR.id, role: Role.DEPOSITOR };
-  const agent1: Actor = { tenantId: tenant.id, userId: byRole.AGENT.id, role: Role.AGENT };
+  // Two AGENT rows exist now: address them by email, never by role map.
+  const agent1: Actor = { tenantId: tenant.id, userId: byEmail["agent@demo.test"].id, role: Role.AGENT };
   // Second agent so the maker-checker rule has someone legal to decide.
-  const agent2Row = await prisma.user.create({
+  // Seeded as agent2@demo.test; fall back to creating one if the seed changes.
+  let agent2Row = users.find((u) => u.email === "agent2@demo.test");
+  agent2Row ??= await prisma.user.create({
     data: {
       tenantId: tenant.id,
       email: "agent2@demo.test",
@@ -48,9 +52,13 @@ async function main(): Promise<void> {
       auth0Sub: "auth0|smoke-agent2",
     },
   });
+  const agent2ownsRow = agent2Row.auth0Sub === "auth0|smoke-agent2";
   const agent2: Actor = { tenantId: tenant.id, userId: agent2Row.id, role: Role.AGENT };
 
-  const agreement = await prisma.agreement.findFirstOrThrow({ where: { tenantId: tenant.id } });
+  const agreement = await prisma.agreement.findFirstOrThrow({
+    where: { tenantId: tenant.id },
+    orderBy: { createdAt: "asc" },
+  });
   const createdIds: string[] = [];
 
   console.log("Filing:");
@@ -133,10 +141,13 @@ async function main(): Promise<void> {
     check("foreign tenant lookup rejected with NOT_FOUND", codeOf(e) === "NOT_FOUND", codeOf(e));
   }
 
-  // Cleanup: leave the DB exactly as seeded.
+  // Cleanup: leave the DB exactly as seeded (only delete the fallback user
+  // if this run created it; the seeded agent2 stays).
   await prisma.auditEvent.deleteMany({ where: { releaseRequestId: { in: createdIds } } });
   await prisma.releaseRequest.deleteMany({ where: { id: { in: createdIds } } });
-  await prisma.user.delete({ where: { id: agent2Row.id } });
+  if (agent2ownsRow) {
+    await prisma.user.delete({ where: { id: agent2Row.id } });
+  }
 
   await prisma.$disconnect();
   console.log(failures === 0 ? "SMOKE M5: all checks passed." : `SMOKE M5: ${failures} check(s) FAILED.`);

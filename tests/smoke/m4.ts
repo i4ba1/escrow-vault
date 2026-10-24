@@ -65,7 +65,10 @@ async function main(): Promise<void> {
   const depositor: Actor = { tenantId: tenant.id, userId: byRole.DEPOSITOR.id, role: Role.DEPOSITOR };
   const agent: Actor = { tenantId: tenant.id, userId: byRole.AGENT.id, role: Role.AGENT };
 
-  const agreement = await prisma.agreement.findFirstOrThrow({ where: { tenantId: tenant.id } });
+  const agreement = await prisma.agreement.findFirstOrThrow({
+    where: { tenantId: tenant.id },
+    orderBy: { createdAt: "asc" },
+  });
   const draft = await createDraftDeposit(depositor, agreement.id);
   // Three types so the coverage check has something to chew on (and the
   // Certified build-reproducibility gate sees a build script).
