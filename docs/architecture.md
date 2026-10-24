@@ -1,7 +1,7 @@
 # EscrowVault — Architecture Design
 
 > Status: **design v1** (full-lifecycle scope) · Auth: Auth.js v5 + Auth0 OIDC ·
-> Target live URL: Vercel + AWS free tiers · Local profile: Docker Compose (Postgres + MinIO).
+> Target live URL: Vercel + AWS free tiers · Local profile: Docker Compose (Postgres + S3Mock).
 
 EscrowVault is a working miniature of a **software-escrow portal**: the web app used by
 vendors (depositors), beneficiaries (clients), escrow agents, and auditors to manage
@@ -80,8 +80,8 @@ flowchart TB
     BROWSER -->|direct PUT<br/>presigned URL| S3B
 ```
 
-Local profile mirrors this with Docker Compose: Postgres 16 + MinIO (S3-compatible) +
-a Lambda stub (plain Node script polling MinIO), so the full upload→scan loop runs offline.
+Local profile mirrors this with Docker Compose: Postgres 16 + S3Mock (S3-compatible) +
+a Lambda stub (plain Node script polling S3Mock), so the full upload→scan loop runs offline.
 
 ## 4. Inside the Next.js app (components)
 
@@ -139,7 +139,7 @@ from the session on every call — the client is never trusted for either value.
 sequenceDiagram
     participant B as Browser
     participant S as /api/uploads/sign
-    participant S3 as S3 / MinIO
+    participant S3 as S3 / S3Mock
     participant L as Lambda deposit-scan
     participant D as Postgres
     B->>S: POST {depositId, filename, size, sha256} (session cookie)
@@ -153,7 +153,7 @@ sequenceDiagram
 ```
 
 Why presigned URLs: large archives bypass the Vercel function payload limit, and AWS
-credentials never leave the server. Locally, MinIO + the Lambda stub reproduce this
+credentials never leave the server. Locally, S3Mock + the Lambda stub reproduce this
 1:1, including signature verification.
 
 ### 5.3 Verification tiers (Validated → Verified → Certified)
@@ -257,7 +257,7 @@ on Deposit; unique `serialNo` on Certificate. Migrations are hand-reviewable SQL
 |---|---|---|---|
 | Unit | Vitest + React Testing Library | state machines (all transitions incl. illegal ones), RBAC helpers, zod env, form validation | `pnpm test` in CI |
 | Component | Vitest + RTL + MSW | wizard steps, dashboard charts (mocked GraphQL), 403 states | same suite |
-| API/e2e | Playwright vs `next start` + Postgres service + MinIO | happy path deposit→verify→release; RBAC denial; dispute-window expiry (time-shifted seed); idempotent re-submit | CI job, trace on failure |
+| API/e2e | Playwright vs `next start` + Postgres service + S3Mock | happy path deposit→verify→release; RBAC denial; dispute-window expiry (time-shifted seed); idempotent re-submit | CI job, trace on failure |
 | Type/lint | `tsc --noEmit`, ESLint (incl. import-boundary rule §4), Prettier check | layer rules, no secrets in client bundle (grep gate for `process.env` in `*.client.tsx`) | pre-merge |
 
 Seeded demo login (documented in README at M6): three users, one per core role, same
@@ -269,13 +269,13 @@ password, on a fresh seeded tenant — so the live demo and the Loom never touch
 flowchart LR
     PUSH[push to main] --> GH[GitHub Actions ci.yml]
     GH --> T[typecheck + lint + unit]
-    GH --> E[e2e: Playwright + Postgres svc + MinIO]
+    GH --> E[e2e: Playwright + Postgres svc + S3Mock]
     T & E -->|green| PREV[Vercel Preview deploy<br/>+ auto comment with URL]
     TAG[version tag v*] --> PROD[Vercel Production<br/>+ S3/Lambda already live<br/>via AWS free tier]
 ```
 
 - Environments: `preview` (per-PR, seeded demo data) vs `production` (clean).
-- `docker-compose.yml` reproduces Postgres + MinIO + Lambda-stub locally; the Lambda
+- `docker-compose.yml` reproduces Postgres + S3Mock + Lambda-stub locally; the Lambda
   stub is a drop-in Node script with the same event shape as the real S3 trigger.
 
 ## 10. Planned repository layout
@@ -286,7 +286,7 @@ EscrowVault/
 ├── aws/lambda/deposit-scan/      # real Lambda (Node.js 22 runtime)
 ├── docs/architecture.md          # this file
 ├── prisma/                       # schema.prisma, migrations/, seed.ts
-├── scripts/lambda-stub.mjs       # local MinIO-polling stand-in for the Lambda
+├── scripts/lambda-stub.mjs       # local S3Mock-polling stand-in for the Lambda
 ├── src/
 │   ├── app/                      # (marketing)/ + (portal)/ + api/
 │   ├── components/               # *.client.tsx only at interactivity leaves

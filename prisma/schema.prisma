@@ -1,0 +1,234 @@
+// EscrowVault v1 data model — see docs/architecture.md §6.
+// Tenant isolation: every tenant-scoped table carries tenantId (directly or via
+// its agreement/deposit chain); all queries must scope on it. AuditEvent is
+// append-only: no update/delete API is ever exposed for it.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DEPOSITOR
+  AGENT
+  BENEFICIARY
+  AUDITOR
+}
+
+enum AgreementStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum ReleaseTrigger {
+  INSOLVENCY
+  CESSATION
+  SUPPORT_FAILURE
+  BREACH
+  OWNERSHIP_CHANGE
+  END_OF_LIFE
+  SLA_BREACH
+}
+
+enum DepositStatus {
+  DRAFT
+  UPLOADING
+  SCANNING
+  READY
+  ACTIVE
+  SUPERSEDED
+}
+
+enum AssetType {
+  SOURCE
+  DATABASE
+  CONFIG
+  DOCS
+  BUILD_SCRIPT
+  API_SPEC
+}
+
+enum ScanStatus {
+  PENDING
+  PASS
+  FAIL
+}
+
+enum VerificationTier {
+  VALIDATED
+  VERIFIED
+  CERTIFIED
+}
+
+enum VerificationStatus {
+  QUEUED
+  RUNNING
+  PASSED
+  FAILED
+  EXPIRED
+}
+
+enum ReleaseStatus {
+  FILED
+  NOTIFIED
+  DISPUTED
+  UNDISPUTED
+  APPROVED
+  DENIED
+  DELIVERED
+}
+
+model Tenant {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  createdAt   DateTime     @default(now())
+  users       User[]
+  agreements  Agreement[]
+  auditEvents AuditEvent[]
+}
+
+model User {
+  id              String           @id @default(cuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email           String
+  role            Role
+  auth0Sub        String           @unique
+  createdAt       DateTime         @default(now())
+  filedReleases   ReleaseRequest[] @relation("FiledBy")
+  decidedReleases ReleaseRequest[] @relation("DecidedBy")
+  auditEvents     AuditEvent[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Agreement {
+  id              String             @id @default(cuid())
+  tenantId        String
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vendorName      String
+  beneficiaryName String
+  status          AgreementStatus    @default(DRAFT)
+  activatedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  conditions      ReleaseCondition[]
+  deposits        Deposit[]
+  releaseRequests ReleaseRequest[]
+
+  @@index([tenantId])
+}
+
+model ReleaseCondition {
+  id                String         @id @default(cuid())
+  agreementId       String
+  agreement         Agreement      @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  trigger           ReleaseTrigger
+  description       String
+  disputeWindowDays Int            @default(14)
+
+  @@index([agreementId])
+}
+
+model Deposit {
+  id               String            @id @default(cuid())
+  agreementId      String
+  agreement        Agreement         @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  version          Int
+  status           DepositStatus     @default(DRAFT)
+  activatedAt      DateTime?
+  createdAt        DateTime          @default(now())
+  assets           Asset[]
+  verificationRuns VerificationRun[]
+  auditEvents      AuditEvent[]
+
+  @@unique([agreementId, version])
+  @@index([agreementId])
+}
+
+model Asset {
+  id         String     @id @default(cuid())
+  depositId  String
+  deposit    Deposit    @relation(fields: [depositId], references: [id], onDelete: Cascade)
+  type       AssetType
+  filename   String
+  s3Key      String     @unique
+  sizeBytes  BigInt
+  sha256     String
+  scanStatus ScanStatus @default(PENDING)
+  createdAt  DateTime   @default(now())
+
+  @@index([depositId])
+}
+
+model VerificationRun {
+  id          String             @id @default(cuid())
+  depositId   String
+  deposit     Deposit            @relation(fields: [depositId], references: [id], onDelete: Cascade)
+  tier        VerificationTier
+  status      VerificationStatus @default(QUEUED)
+  findings    Json?
+  createdAt   DateTime           @default(now())
+  completedAt DateTime?
+  certificate Certificate?
+  auditEvents AuditEvent[]
+
+  @@index([depositId])
+}
+
+model Certificate {
+  id                String          @id @default(cuid())
+  verificationRunId String          @unique
+  verificationRun   VerificationRun @relation(fields: [verificationRunId], references: [id], onDelete: Cascade)
+  tier              VerificationTier
+  serialNo          String          @unique @default(cuid())
+  issuedAt          DateTime        @default(now())
+}
+
+model ReleaseRequest {
+  id           String         @id @default(cuid())
+  agreementId  String
+  agreement    Agreement      @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  filedById    String
+  filedBy      User           @relation("FiledBy", fields: [filedById], references: [id], onDelete: Restrict)
+  trigger      ReleaseTrigger
+  evidence     Json?
+  status       ReleaseStatus  @default(FILED)
+  disputeUntil DateTime?
+  decidedById  String?
+  decidedBy    User?          @relation("DecidedBy", fields: [decidedById], references: [id], onDelete: Restrict)
+  decidedAt    DateTime?
+  createdAt    DateTime       @default(now())
+  auditEvents  AuditEvent[]
+
+  @@index([agreementId])
+}
+
+model AuditEvent {
+  id                String           @id @default(cuid())
+  tenantId          String
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actorId           String?
+  actor             User?            @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  entity            String
+  entityId          String
+  action            String
+  diff              Json?
+  at                DateTime         @default(now())
+  depositId         String?
+  deposit           Deposit?         @relation(fields: [depositId], references: [id], onDelete: Cascade)
+  verificationRunId String?
+  verificationRun   VerificationRun? @relation(fields: [verificationRunId], references: [id], onDelete: Cascade)
+  releaseRequestId  String?
+  releaseRequest    ReleaseRequest?  @relation(fields: [releaseRequestId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([entity, entityId])
+}

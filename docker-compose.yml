@@ -1,0 +1,57 @@
+name: escrowvault
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: escrowvault
+      POSTGRES_PASSWORD: escrowvault_dev
+      POSTGRES_DB: escrowvault
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U escrowvault -d escrowvault"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # S3Mock implements the S3 API surface locally (incl. presigned URLs, which it
+  # accepts without validating the signature, and versioning). Production uses
+  # AWS S3 with the same bucket layout; SDK clients must use path-style access.
+  s3:
+    image: adobe/s3mock:5
+    ports:
+      - "9090:9090"
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: escrow-deposits
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /s3mockroot
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
+    volumes:
+      - s3data:/s3mockroot
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/favicon.ico"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-shot bucket setup: enable versioning on the deposit bucket.
+  s3-setup:
+    image: amazon/aws-cli:latest
+    depends_on:
+      s3:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      aws --endpoint-url=http://s3:9090 --region us-east-1 s3api put-bucket-versioning --bucket escrow-deposits --versioning-configuration Status=Enabled &&
+      aws --endpoint-url=http://s3:9090 --region us-east-1 s3api get-bucket-versioning --bucket escrow-deposits
+      "
+    environment:
+      AWS_ACCESS_KEY_ID: escrowvault
+      AWS_SECRET_ACCESS_KEY: escrowvault_minio_dev
+      AWS_EC2_METADATA_DISABLED: "true"
+
+volumes:
+  pgdata:
+  s3data:
