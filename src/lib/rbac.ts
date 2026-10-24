@@ -3,22 +3,12 @@ import "server-only";
 import { auth } from "@/auth";
 import type { Role } from "@prisma/client";
 import type { Session } from "next-auth";
+import {
+  ForbiddenError,
+  UnauthorizedError,
+} from "../services/errors";
 
-export class UnauthorizedError extends Error {
-  readonly status = 401;
-  constructor(message = "Sign in required.") {
-    super(message);
-    this.name = "UnauthorizedError";
-  }
-}
-
-export class ForbiddenError extends Error {
-  readonly status = 403;
-  constructor(message = "Insufficient role for this operation.") {
-    super(message);
-    this.name = "ForbiddenError";
-  }
-}
+export { ForbiddenError, UnauthorizedError };
 
 export interface AppSessionUser {
   appUserId: string;

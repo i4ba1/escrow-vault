@@ -11,13 +11,20 @@
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "smoke:m3": "tsx --env-file=.env tests/smoke/m3.ts",
+    "worker:scan": "tsx --env-file=.env scripts/lambda-stub.ts"
   },
   "prisma": {
     "seed": "tsx --env-file=.env prisma/seed.ts"
   },
   "dependencies": {
+    "@apollo/server": "^5.5.1",
+    "@aws-sdk/client-s3": "^3.1156.0",
+    "@aws-sdk/s3-request-presigner": "^3.1156.0",
     "@prisma/client": "^6.19.3",
+    "dataloader": "^2.2.3",
+    "graphql": "^16.11.0",
     "next": "16.4.3",
     "next-auth": "5.0.0-beta.32",
     "react": "19.3.0",
