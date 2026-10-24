@@ -81,14 +81,10 @@ export function UploadForm({ depositId }: { depositId: string }) {
     phase.name === "uploading";
 
   return (
-    <form onSubmit={onSubmit} className="mt-3 flex flex-col gap-3 text-sm">
-      <label className="block">
-        <span className="font-medium">Asset type</span>
-        <select
-          name="assetType"
-          disabled={busy}
-          className="mt-1 block w-full rounded border border-zinc-300 p-2"
-        >
+    <form onSubmit={onSubmit} className="flex flex-col gap-3 text-sm">
+      <label className="field">
+        <span>Asset type</span>
+        <select name="assetType" disabled={busy} defaultValue="SOURCE">
           <option value="SOURCE">Source code</option>
           <option value="DATABASE">Database / schema</option>
           <option value="CONFIG">Configuration</option>
@@ -97,31 +93,21 @@ export function UploadForm({ depositId }: { depositId: string }) {
           <option value="API_SPEC">API specification</option>
         </select>
       </label>
-      <label className="block">
-        <span className="font-medium">File</span>
-        <input
-          type="file"
-          name="file"
-          required
-          disabled={busy}
-          className="mt-1 block w-full text-zinc-700"
-        />
+      <label className="field">
+        <span>File</span>
+        <input type="file" name="file" required disabled={busy} />
       </label>
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded bg-zinc-900 px-4 py-2 font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
-        >
+        <button type="submit" disabled={busy} className="btn-primary">
           {busy ? `${phase.name}…` : "Upload"}
         </button>
         {phase.name === "done" && (
-          <span className="text-green-700">
+          <span className="text-emerald-700">
             Stored — integrity scan will pick it up shortly.
           </span>
         )}
         {phase.name === "error" && (
-          <span className="text-red-700">{phase.message}</span>
+          <span className="text-rose-700">{phase.message}</span>
         )}
       </div>
     </form>

@@ -1,6 +1,14 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAppSession } from "@/lib/rbac";
 import { nextTier } from "@/services/verification";
+import {
+  Card,
+  DepositBadge,
+  PageHeader,
+  ScanBadge,
+  TierBadge,
+} from "@/components/ui";
 import { escalateAction } from "../../verification/actions";
 import { activateDepositAction, getPortalDeposit } from "../actions";
 import { UploadForm } from "./upload-form.client";
@@ -33,88 +41,93 @@ export default async function DepositDetailPage({
       : null;
 
   return (
-    <main className="mx-auto max-w-4xl space-y-8 p-8">
-      <header>
-        <p className="text-sm text-zinc-500">
-          {deposit.agreement.vendorName} → {deposit.agreement.beneficiaryName}
-        </p>
-        <h1 className="text-2xl font-bold">
-          Deposit v{deposit.version} · {deposit.status}
-        </h1>
-      </header>
+    <div className="space-y-5">
+      <PageHeader
+        title={`Deposit v${deposit.version}`}
+        sub={`${deposit.agreement.vendorName} → ${deposit.agreement.beneficiaryName}`}
+        actions={<DepositBadge status={deposit.status} />}
+      />
 
-      <section>
-        <h2 className="font-semibold">Assets ({deposit.assets.length})</h2>
+      <Card
+        title={`Assets (${deposit.assets.length})`}
+        sub="Files are hash-verified by the scan worker before they count."
+      >
         {deposit.assets.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-500">No files uploaded yet.</p>
+          <p className="text-sm text-stone-500">No files uploaded yet.</p>
         ) : (
-          <table className="mt-2 w-full text-left text-sm">
-            <thead>
-              <tr className="border-b text-zinc-500">
-                <th className="py-2 pr-4 font-medium">File</th>
-                <th className="py-2 pr-4 font-medium">Size</th>
-                <th className="py-2 pr-4 font-medium">SHA-256</th>
-                <th className="py-2 font-medium">Scan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deposit.assets.map((a) => (
-                <tr key={a.id} className="border-b last:border-0">
-                  <td className="py-2 pr-4 font-medium">{a.filename}</td>
-                  <td className="py-2 pr-4">{a.sizeBytes.toString()} B</td>
-                  <td className="py-2 pr-4 font-mono text-xs text-zinc-500">
-                    {a.sha256.slice(0, 16)}…
-                  </td>
-                  <td className="py-2">{a.scanStatus}</td>
+          <div className="overflow-x-auto">
+            <table className="ev-table">
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Type</th>
+                  <th>Size</th>
+                  <th>SHA-256</th>
+                  <th>Scan</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {deposit.assets.map((a) => (
+                  <tr key={a.id}>
+                    <td className="font-medium">{a.filename}</td>
+                    <td className="text-stone-500">{a.type}</td>
+                    <td className="tabular-nums">{a.sizeBytes.toString()} B</td>
+                    <td className="font-mono text-xs text-stone-500">
+                      {a.sha256.slice(0, 16)}…
+                    </td>
+                    <td>
+                      <ScanBadge status={a.scanStatus} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </section>
+      </Card>
 
       {(deposit.status === "DRAFT" || deposit.status === "UPLOADING") && (
-        <section className="rounded border border-zinc-200 p-4">
-          <h2 className="font-semibold">Upload a file</h2>
+        <Card title="Upload a file" sub="Hashed in your browser, sent straight to encrypted storage.">
           <UploadForm depositId={deposit.id} />
-        </section>
+        </Card>
       )}
 
-      <section>
-        <h2 className="font-semibold">Verification runs</h2>
+      <Card title="Verification runs" sub="Tier history for this deposit.">
         {deposit.verificationRuns.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-500">
+          <p className="text-sm text-stone-500">
             Runs appear once every asset passes the integrity scan.
           </p>
         ) : (
-          <ul className="mt-2 list-disc pl-5 text-sm">
+          <ul className="divide-y divide-stone-100 text-sm">
             {deposit.verificationRuns.map((r) => (
-              <li key={r.id}>
-                {r.tier} · {r.status}
-                {r.certificate ? ` · ${r.certificate.serialNo}` : ""}
+              <li key={r.id} className="flex flex-wrap items-center gap-2 py-2">
+                <TierBadge tier={r.tier} />
+                <span className="font-medium">{r.status}</span>
+                {r.certificate && (
+                  <Link
+                    href={`/verify/${r.certificate.serialNo}`}
+                    className="font-mono text-xs text-emerald-800 underline-offset-4 hover:underline"
+                  >
+                    {r.certificate.serialNo}
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
       {isAgent && upcomingTier && (
-        <form
-          action={escalateAction.bind(null, deposit.id, upcomingTier)}
-          className="rounded border border-zinc-200 p-4"
+        <Card
+          title={`Request ${upcomingTier} verification`}
+          sub="Opens the next tier run. Lower tiers must have passed — enforced server-side."
         >
-          <h2 className="font-semibold">Request {upcomingTier} verification</h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            Opens a {upcomingTier} run for this deposit. Lower tiers must have
-            passed — enforced server-side.
-          </p>
-          <button
-            type="submit"
-            className="mt-3 rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-          >
-            Escalate to {upcomingTier}
-          </button>
-        </form>
+          <form action={escalateAction.bind(null, deposit.id, upcomingTier)}>
+            <button type="submit" className="btn-primary">
+              Escalate to {upcomingTier}
+            </button>
+          </form>
+        </Card>
       )}
 
       {canActivate ? (
@@ -124,20 +137,17 @@ export default async function DepositDetailPage({
             await activateDepositAction(deposit.id);
           }}
         >
-          <button
-            type="submit"
-            className="rounded bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-600"
-          >
+          <button type="submit" className="btn-success">
             Activate deposit
           </button>
         </form>
       ) : (
         deposit.status !== "ACTIVE" && (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-stone-500">
             Activation unlocks once every asset shows SCAN PASS.
           </p>
         )
       )}
-    </main>
+    </div>
   );
 }

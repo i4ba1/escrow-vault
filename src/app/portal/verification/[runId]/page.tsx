@@ -1,6 +1,13 @@
 import { notFound } from "next/navigation";
 import { requireAppSession } from "@/lib/rbac";
 import {
+  Card,
+  PageHeader,
+  RunBadge,
+  StatusBadge,
+  TierBadge,
+} from "@/components/ui";
+import {
   decideAction,
   executeRunAction,
   getPortalRun,
@@ -22,46 +29,57 @@ export default async function RunDetailPage({
   const findings = (run.findings as { checks?: { name: string; pass: boolean; detail: string }[] } | null)?.checks ?? [];
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-8">
-      <header>
-        <p className="text-sm text-zinc-500">
-          {run.deposit.agreement.vendorName} → {run.deposit.agreement.beneficiaryName} · v{run.deposit.version}
-        </p>
-        <h1 className="text-2xl font-bold">
-          {run.tier} · {run.status}
-        </h1>
-      </header>
+    <div className="mx-auto max-w-3xl space-y-5">
+      <PageHeader
+        title={`${run.tier} verification`}
+        sub={`${run.deposit.agreement.vendorName} → ${run.deposit.agreement.beneficiaryName} · v${run.deposit.version}`}
+        actions={
+          <>
+            <TierBadge tier={run.tier} />
+            <RunBadge status={run.status} />
+          </>
+        }
+      />
 
-      <section>
-        <h2 className="font-semibold">Checks ({findings.length})</h2>
+      <Card title={`Checks (${findings.length})`}>
         {findings.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-500">Not executed yet.</p>
+          <p className="text-sm text-stone-500">Not executed yet.</p>
         ) : (
-          <ul className="mt-2 space-y-2 text-sm">
+          <ul className="space-y-2">
             {findings.map((c) => (
-              <li key={c.name} className="rounded border border-zinc-200 p-3">
-                <span className={c.pass ? "text-green-700" : "text-red-700"}>
+              <li
+                key={c.name}
+                className={`rounded-lg border p-3 text-sm ${
+                  c.pass ? "border-emerald-200 bg-emerald-50/60" : "border-rose-200 bg-rose-50/60"
+                }`}
+              >
+                <span className={`font-semibold ${c.pass ? "text-emerald-700" : "text-rose-700"}`}>
                   {c.pass ? "PASS" : "FAIL"}
                 </span>{" "}
-                <span className="font-medium">{c.name}</span>
-                <p className="text-zinc-500">{c.detail}</p>
+                <span className="font-medium text-stone-900">{c.name}</span>
+                <p className="mt-0.5 text-stone-500">{c.detail}</p>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
       {run.certificate && (
-        <section className="rounded border border-green-300 bg-green-50 p-4 text-sm">
-          <h2 className="font-semibold text-green-900">Resilience certificate</h2>
-          <p className="mt-1 font-mono">{run.certificate.serialNo}</p>
-          <p className="text-zinc-600">
+        <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-sm">
+          <h2 className="font-semibold text-emerald-950">Resilience certificate</h2>
+          <p className="mt-1 font-mono text-base font-bold text-emerald-900">
+            {run.certificate.serialNo}
+          </p>
+          <p className="mt-1 text-emerald-800">
             Issued {run.certificate.issuedAt.toISOString().slice(0, 10)} ·{" "}
-            <a className="underline" href={`/verify/${run.certificate.serialNo}`}>
+            <a
+              className="font-medium underline underline-offset-4"
+              href={`/verify/${run.certificate.serialNo}`}
+            >
               public verification page
             </a>
           </p>
-        </section>
+        </div>
       )}
 
       {isAgent && run.status === "QUEUED" && (
@@ -71,56 +89,46 @@ export default async function RunDetailPage({
             await executeRunAction(run.id);
           }}
         >
-          <button
-            type="submit"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-          >
+          <button type="submit" className="btn-primary">
             Execute {run.tier} checks
           </button>
         </form>
       )}
 
-      {isAgent &&
-        run.tier === "CERTIFIED" &&
-        run.status === "RUNNING" && (
-          <section className="rounded border border-amber-300 bg-amber-50 p-4">
-            <h2 className="font-semibold">Human build-test sign-off</h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Automated pre-checks passed. Confirm you compiled and ran the
-              application from this deposit, then sign off.
-            </p>
-            <form action={decideAction.bind(null, run.id)} className="mt-3 space-y-3 text-sm">
-              <label className="block">
-                <span className="font-medium">Review note</span>
-                <input
-                  name="note"
-                  required
-                  maxLength={500}
-                  placeholder="e.g. built from source.tar.gz, smoke test green"
-                  className="mt-1 block w-full rounded border border-zinc-300 p-2"
-                />
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  name="decision"
-                  value="approve"
-                  className="rounded bg-green-700 px-4 py-2 font-medium text-white hover:bg-green-600"
-                >
-                  Approve &amp; issue certificate
-                </button>
-                <button
-                  type="submit"
-                  name="decision"
-                  value="reject"
-                  className="rounded bg-red-700 px-4 py-2 font-medium text-white hover:bg-red-600"
-                >
-                  Reject
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
-    </main>
+      {isAgent && run.tier === "CERTIFIED" && run.status === "RUNNING" && (
+        <Card
+          title="Human build-test sign-off"
+          sub="Automated pre-checks passed. Confirm you compiled and ran the application from this deposit, then sign off."
+          className="border-amber-300 bg-amber-50"
+        >
+          <form action={decideAction.bind(null, run.id)} className="space-y-3 text-sm">
+            <label className="field">
+              <span>Review note</span>
+              <input
+                name="note"
+                required
+                maxLength={500}
+                placeholder="e.g. built from source.tar.gz, smoke test green"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button type="submit" name="decision" value="approve" className="btn-success">
+                Approve &amp; issue certificate
+              </button>
+              <button type="submit" name="decision" value="reject" className="btn-danger">
+                Reject
+              </button>
+            </div>
+          </form>
+        </Card>
+      )}
+
+      {!isAgent && (
+        <p className="flex items-center gap-2 text-sm text-stone-500">
+          <StatusBadge tone="stone">read-only</StatusBadge>
+          Execution and sign-off need the agent role.
+        </p>
+      )}
+    </div>
   );
 }

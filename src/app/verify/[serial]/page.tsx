@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { cacheLife } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
@@ -46,42 +47,45 @@ export default async function VerifyCertificatePage({
   if (!certificate) notFound();
 
   const { verificationRun: run } = certificate;
+  const rows: [string, string][] = [
+    ["Tier", certificate.tier],
+    ["Outcome", run.status],
+    ["Vendor", run.deposit.agreement.vendorName],
+    ["Beneficiary", run.deposit.agreement.beneficiaryName],
+    ["Deposit version", `v${run.deposit.version}`],
+    ["Assets covered", String(run.deposit.assets.length)],
+    ["Issued", certificate.issuedAt.toISOString().slice(0, 10)],
+  ];
   return (
-    <main className="mx-auto max-w-xl p-8">
-      <p className="text-sm text-zinc-500">Software Resilience Certificate</p>
-      <h1 className="mt-1 font-mono text-2xl font-bold">{certificate.serialNo}</h1>
-      <dl className="mt-6 space-y-3 text-sm">
-        <div className="flex justify-between border-b pb-2">
-          <dt className="text-zinc-500">Tier</dt>
-          <dd className="font-medium">{certificate.tier}</dd>
+    <div className="min-h-screen bg-stone-950 text-stone-100">
+      <main className="mx-auto max-w-xl px-4 py-16">
+        <p className="text-center text-xs font-semibold tracking-widest text-emerald-400 uppercase">
+          Software Resilience Certificate
+        </p>
+        <h1 className="mt-2 text-center font-mono text-3xl font-bold tracking-tight text-white">
+          {certificate.serialNo}
+        </h1>
+        <div className="mt-8 overflow-hidden rounded-xl border border-white/10 bg-white/5">
+          {rows.map(([label, value], i) => (
+            <div
+              key={label}
+              className={`flex items-center justify-between px-5 py-3 text-sm ${
+                i === rows.length - 1 ? "" : "border-b border-white/10"
+              }`}
+            >
+              <dt className="text-stone-400">{label}</dt>
+              <dd className="font-medium text-white">{value}</dd>
+            </div>
+          ))}
         </div>
-        <div className="flex justify-between border-b pb-2">
-          <dt className="text-zinc-500">Outcome</dt>
-          <dd className="font-medium">{run.status}</dd>
-        </div>
-        <div className="flex justify-between border-b pb-2">
-          <dt className="text-zinc-500">Vendor</dt>
-          <dd className="font-medium">{run.deposit.agreement.vendorName}</dd>
-        </div>
-        <div className="flex justify-between border-b pb-2">
-          <dt className="text-zinc-500">Beneficiary</dt>
-          <dd className="font-medium">{run.deposit.agreement.beneficiaryName}</dd>
-        </div>
-        <div className="flex justify-between border-b pb-2">
-          <dt className="text-zinc-500">Deposit version</dt>
-          <dd className="font-medium">v{run.deposit.version}</dd>
-        </div>
-        <div className="flex justify-between border-b pb-2">
-          <dt className="text-zinc-500">Assets covered</dt>
-          <dd className="font-medium">{run.deposit.assets.length}</dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-zinc-500">Issued</dt>
-          <dd className="font-medium">
-            {certificate.issuedAt.toISOString().slice(0, 10)}
-          </dd>
-        </div>
-      </dl>
-    </main>
+        <p className="mt-6 text-center text-xs text-stone-500">
+          Verify this serial any time at{" "}
+          <span className="font-mono">/verify/{certificate.serialNo}</span> ·{" "}
+          <Link href="/" className="underline underline-offset-4 hover:text-stone-300">
+            EscrowVault
+          </Link>
+        </p>
+      </main>
+    </div>
   );
 }

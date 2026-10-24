@@ -1,54 +1,60 @@
 import Link from "next/link";
+import { ActionLink, Card, EmptyState, PageHeader, ReleaseBadge } from "@/components/ui";
 import { getPortalReleases } from "./actions";
 
 export default async function ReleasesPage() {
   const requests = await getPortalReleases();
+  const open = requests.filter(
+    (r) => r.status !== "DELIVERED" && r.status !== "DENIED",
+  );
   return (
-    <main className="mx-auto max-w-4xl p-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Release requests</h1>
-        <Link
-          href="/portal/releases/new"
-          className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-        >
-          File a claim
-        </Link>
-      </div>
+    <div className="space-y-5">
+      <PageHeader
+        title="Release requests"
+        sub={`${open.length} active · ${requests.length} total`}
+        actions={<ActionLink href="/portal/releases/new">File a claim</ActionLink>}
+      />
       {requests.length === 0 ? (
-        <p className="mt-8 text-sm text-zinc-500">
-          No release claims. Beneficiaries file here when a contractual trigger fires.
-        </p>
+        <EmptyState
+          title="No release claims"
+          hint="Beneficiaries file here when a contractual trigger fires."
+          action={<ActionLink href="/portal/releases/new">File a claim</ActionLink>}
+        />
       ) : (
-        <table className="mt-6 w-full text-left text-sm">
-          <thead>
-            <tr className="border-b text-zinc-500">
-              <th className="py-2 pr-4 font-medium">Agreement</th>
-              <th className="py-2 pr-4 font-medium">Trigger</th>
-              <th className="py-2 pr-4 font-medium">Status</th>
-              <th className="py-2 font-medium">Filed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {requests.map((r) => (
-              <tr key={r.id} className="border-b last:border-0">
-                <td className="py-2 pr-4">
-                  <Link
-                    href={`/portal/releases/${r.id}`}
-                    className="font-medium underline underline-offset-4"
-                  >
-                    {r.agreement.vendorName} → {r.agreement.beneficiaryName}
-                  </Link>
-                </td>
-                <td className="py-2 pr-4">{r.trigger}</td>
-                <td className="py-2 pr-4">{r.status}</td>
-                <td className="py-2 text-zinc-500">
-                  {r.createdAt.toISOString().slice(0, 10)}
-                </td>
+        <Card className="overflow-x-auto p-0 sm:p-0">
+          <table className="ev-table m-5 w-[calc(100%-2.5rem)]">
+            <thead>
+              <tr>
+                <th>Agreement</th>
+                <th>Trigger</th>
+                <th>Status</th>
+                <th>Filed</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {requests.map((r) => (
+                <tr key={r.id} className="transition-colors hover:bg-stone-50">
+                  <td>
+                    <Link
+                      href={`/portal/releases/${r.id}`}
+                      className="font-medium text-emerald-800 underline-offset-4 hover:underline"
+                    >
+                      {r.agreement.vendorName} → {r.agreement.beneficiaryName}
+                    </Link>
+                  </td>
+                  <td className="text-stone-600">{r.trigger}</td>
+                  <td>
+                    <ReleaseBadge status={r.status} />
+                  </td>
+                  <td className="text-stone-500 tabular-nums">
+                    {r.createdAt.toISOString().slice(0, 10)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
       )}
-    </main>
+    </div>
   );
 }

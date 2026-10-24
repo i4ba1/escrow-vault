@@ -1,5 +1,19 @@
 import Link from "next/link";
+import {
+  Card,
+  EmptyState,
+  PageHeader,
+  RunBadge,
+  TierBadge,
+} from "@/components/ui";
 import { getPortalRuns } from "./actions";
+
+interface QueueRow {
+  id: string;
+  tier: string;
+  status: string;
+  deposit: { agreement: { vendorName: string }; version: number };
+}
 
 // Agent work queue: open runs first, then history. Depositors/beneficiaries
 // see the same read-only queue (their layout gate already passed); actions
@@ -9,58 +23,61 @@ export default async function VerificationPage() {
   const open = runs.filter((r) => r.status === "QUEUED" || r.status === "RUNNING");
   const done = runs.filter((r) => r.status !== "QUEUED" && r.status !== "RUNNING");
   return (
-    <main className="mx-auto max-w-4xl space-y-8 p-8">
-      <h1 className="text-2xl font-bold">Verification</h1>
-      <section>
-        <h2 className="font-semibold">Open runs ({open.length})</h2>
+    <div className="space-y-5">
+      <PageHeader
+        title="Verification"
+        sub={`${open.length} open · ${done.length} completed`}
+      />
+      <Card title={`Open runs (${open.length})`}>
         {open.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-500">Queue is empty.</p>
+          <EmptyState title="Queue is empty" hint="New runs appear once deposits finish scanning." />
         ) : (
           <RunTable runs={open} />
         )}
-      </section>
-      <section>
-        <h2 className="font-semibold">History ({done.length})</h2>
+      </Card>
+      <Card title={`History (${done.length})`}>
         {done.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-500">No completed runs yet.</p>
+          <p className="text-sm text-stone-500">No completed runs yet.</p>
         ) : (
           <RunTable runs={done} />
         )}
-      </section>
-    </main>
+      </Card>
+    </div>
   );
 }
 
-function RunTable({
-  runs,
-}: {
-  runs: { id: string; tier: string; status: string; deposit: { agreement: { vendorName: string }; version: number } }[];
-}) {
+function RunTable({ runs }: { runs: QueueRow[] }) {
   return (
-    <table className="mt-2 w-full text-left text-sm">
-      <thead>
-        <tr className="border-b text-zinc-500">
-          <th className="py-2 pr-4 font-medium">Deposit</th>
-          <th className="py-2 pr-4 font-medium">Tier</th>
-          <th className="py-2 font-medium">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {runs.map((r) => (
-          <tr key={r.id} className="border-b last:border-0">
-            <td className="py-2 pr-4">
-              <Link
-                href={`/portal/verification/${r.id}`}
-                className="font-medium underline underline-offset-4"
-              >
-                {r.deposit.agreement.vendorName} v{r.deposit.version}
-              </Link>
-            </td>
-            <td className="py-2 pr-4">{r.tier}</td>
-            <td className="py-2">{r.status}</td>
+    <div className="overflow-x-auto">
+      <table className="ev-table">
+        <thead>
+          <tr>
+            <th>Deposit</th>
+            <th>Tier</th>
+            <th>Status</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {runs.map((r) => (
+            <tr key={r.id} className="transition-colors hover:bg-stone-50">
+              <td>
+                <Link
+                  href={`/portal/verification/${r.id}`}
+                  className="font-medium text-emerald-800 underline-offset-4 hover:underline"
+                >
+                  {r.deposit.agreement.vendorName} v{r.deposit.version}
+                </Link>
+              </td>
+              <td>
+                <TierBadge tier={r.tier} />
+              </td>
+              <td>
+                <RunBadge status={r.status} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
