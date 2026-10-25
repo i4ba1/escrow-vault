@@ -35,7 +35,7 @@ Three pillars:
 | Pillar | Rule | Killed pattern from v1 |
 |---|---|---|
 | **Dark-first, one world** | The portal *is* dark; the landing shares the exact same surface, so product and marketing read as one product | separate hero theme |
-| **Color = state only** | Neutral zinc surfaces everywhere; emerald/amber/rose appear *only* in status pills, deltas and risk indicators | orange这位 doughnut slices, colored stat cards |
+| **Color = state only** | Neutral zinc surfaces everywhere; emerald/amber/rose appear *only* in status pills, deltas and risk indicators | orange doughnut slices, colored stat cards |
 | **Density with hierarchy** | 44–48px table rows, 12–16px card padding, borders `1px` at low contrast; scale = type weight & spacing, not borders & shadows | rounded-xl + shadow-sm card grid |
 
 ## 3. Tokens (OKLCH, shadcn semantic convention)
