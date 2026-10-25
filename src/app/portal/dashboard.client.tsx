@@ -2,7 +2,6 @@
 
 import { ApolloProvider, useQuery } from "@apollo/client/react";
 import {
-  ArcElement,
   BarElement,
   CategoryScale,
   Chart as ChartJS,
@@ -11,18 +10,16 @@ import {
   Tooltip,
 } from "chart.js";
 import { parse } from "graphql";
-import { Bar, Doughnut } from "react-chartjs-2";
+import { Bar } from "react-chartjs-2";
 import { getApolloClient } from "@/lib/apollo-client";
 import {
-  buildStatusDistribution,
   buildTierOutcomes,
   countCertificates,
   countOpenRuns,
 } from "@/lib/dashboard-stats";
-import { Card } from "@/components/ui";
+import { StatTile } from "@/components/ui";
 
 ChartJS.register(
-  ArcElement,
   BarElement,
   CategoryScale,
   LinearScale,
@@ -76,131 +73,117 @@ interface DashboardData {
   }[];
 }
 
+function Skeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true">
+      <div className="h-20 animate-pulse rounded-[6px] border border-line bg-panel" />
+      <div className="h-56 animate-pulse rounded-[6px] border border-line bg-panel" />
+    </div>
+  );
+}
+
+// Restyled per docs/design.md §6-7: StatTile panel + ONE bar chart +
+// activity list. No doughnut, no colored stat cards, no decorative icons.
 function DashboardWidgets() {
   const { data, loading, error } = useQuery<DashboardData>(DASHBOARD_QUERY);
 
-  if (loading) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2" aria-busy="true">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-56 animate-pulse rounded-xl border border-stone-200 bg-white" />
-        ))}
-      </div>
-    );
-  }
+  if (loading) return <Skeleton />;
   if (error || !data) {
     return (
-      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+      <div className="rounded-[6px] border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad">
         Dashboard failed to load: {error?.message ?? "no data"}.
       </div>
     );
   }
 
-  const { labels: statuses, counts: statusCounts } = buildStatusDistribution(
-    data.deposits.map((d) => d.status),
-  );
   const runs = data.deposits.flatMap((d) => d.verificationRuns);
-  const {
-    tiers,
-    passed: passByTier,
-    failed: failByTier,
-  } = buildTierOutcomes(runs);
-  const certs = countCertificates(runs);
+  const { tiers, passed, failed } = buildTierOutcomes(runs);
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Agreements" value={String(data.agreements.length)} href="/portal/deposits" link="View deposits" />
-        <StatCard label="Deposits" value={String(data.deposits.length)} href="/portal/deposits" link="View deposits" />
-        <StatCard label="Certificates" value={String(certs)} href="/portal/verification" link="Verification" />
-        <StatCard label="Open runs" value={String(countOpenRuns(runs))} href="/portal/verification" link="Open queue" />
+      <div className="card grid grid-cols-2 divide-x divide-line sm:grid-cols-4">
+        <StatTile label="Agreements" value={String(data.agreements.length)} href="/portal/deposits" />
+        <StatTile label="Deposits" value={String(data.deposits.length)} href="/portal/deposits" />
+        <StatTile label="Certificates" value={String(countCertificates(runs))} href="/portal/verification" />
+        <StatTile label="Open runs" value={String(countOpenRuns(runs))} href="/portal/verification" />
       </div>
+
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card title="Deposits by status">
-          <div className="mx-auto max-w-72">
-            <Doughnut
+        <section className="card">
+          <h2 className="panel-label mb-3">Verification outcomes by tier</h2>
+          <div className="relative h-40">
+            <Bar
               data={{
-                labels: statuses,
+                labels: tiers,
                 datasets: [
-                  {
-                    data: statusCounts,
-                    backgroundColor: ["#047857", "#f59e0b", "#0284c7", "#1c1917", "#a8a29e"],
-                    borderWidth: 2,
-                    borderColor: "#ffffff",
-                  },
+                  { label: "Passed", data: passed, backgroundColor: "#0fbf9a" },
+                  { label: "Failed", data: failed, backgroundColor: "#5c6370" },
                 ],
               }}
-              options={{ plugins: { legend: { position: "bottom" } } }}
+              options={{
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: "bottom",
+                    labels: {
+                      color: "#a8acb3",
+                      font: { family: "Geist Mono, monospace", size: 11 },
+                      boxWidth: 10,
+                      boxHeight: 10,
+                    },
+                  },
+                },
+                scales: {
+                  x: {
+                    grid: { display: false },
+                    ticks: {
+                      color: "#8a8f98",
+                      font: { family: "Geist Mono, monospace", size: 10 },
+                    },
+                  },
+                  y: {
+                    beginAtZero: true,
+                    grid: { color: "rgba(255,255,255,0.06)" },
+                    border: { display: false },
+                    ticks: {
+                      stepSize: 1,
+                      color: "#8a8f98",
+                      font: { family: "Geist Mono, monospace", size: 10 },
+                    },
+                  },
+                },
+              }}
             />
           </div>
-        </Card>
-        <Card title="Verification outcomes by tier">
-          <Bar
-            data={{
-              labels: tiers,
-              datasets: [
-                { label: "Passed", data: passByTier, backgroundColor: "#059669", borderRadius: 6 },
-                { label: "Failed", data: failByTier, backgroundColor: "#e11d48", borderRadius: 6 },
-              ],
-            }}
-            options={{
-              plugins: { legend: { position: "bottom" } },
-              scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-            }}
-          />
-        </Card>
-      </div>
-      <Card
-        title="Recent activity"
-        sub="Latest audit events across the tenant"
-        className="overflow-hidden"
-      >
-        {data.auditEvents.length === 0 ? (
-          <p className="text-sm text-stone-500">No events yet.</p>
-        ) : (
-          <ul className="divide-y divide-stone-100 text-sm">
-            {data.auditEvents.map((e) => (
-              <li key={e.id} className="flex flex-wrap items-baseline gap-x-2 py-2">
-                <span className="font-semibold text-stone-900">{e.action}</span>
-                <span className="text-stone-500">
-                  {e.entity} · {e.actorEmail ?? "automated"} · {e.at.slice(0, 10)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <a
-          href="/portal/audit"
-          className="mt-3 inline-block text-sm font-medium text-emerald-700 underline-offset-4 hover:underline"
-        >
-          Full timeline →
-        </a>
-      </Card>
-    </div>
-  );
-}
+        </section>
 
-function StatCard({
-  label,
-  value,
-  href,
-  link,
-}: {
-  label: string;
-  value: string;
-  href: string;
-  link: string;
-}) {
-  return (
-    <div className="card">
-      <p className="text-xs font-medium tracking-wide text-stone-500 uppercase">{label}</p>
-      <p className="mt-1 text-3xl font-bold tracking-tight text-stone-950 tabular-nums">{value}</p>
-      <a
-        href={href}
-        className="mt-1 inline-block text-xs font-medium text-emerald-700 underline-offset-4 hover:underline"
-      >
-        {link} →
-      </a>
+        <section className="card">
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="panel-label">Recent activity</h2>
+            <a
+              href="/portal/audit"
+              className="text-[13px] text-tx-lo transition-colors hover:text-accent"
+            >
+              Full timeline →
+            </a>
+          </div>
+          {data.auditEvents.length === 0 ? (
+            <p className="text-[13px] text-tx-lo">No events yet.</p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {data.auditEvents.map((e) => (
+                <li key={e.id} className="flex items-baseline gap-2 py-1.5 text-[13px]">
+                  <span className="font-medium text-tx-hi">{e.action}</span>
+                  <span className="text-tx-mid">{e.entity}</span>
+                  <span className="ml-auto text-xs text-tx-lo tabular-nums">
+                    {e.actorEmail ?? "automated"} · {e.at.slice(0, 10)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

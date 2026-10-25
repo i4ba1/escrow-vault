@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireAppSession } from "@/lib/rbac";
-import { Card, PageHeader, ReleaseBadge } from "@/components/ui";
+import { Card, KeyValue, PageHeader, ReleaseBadge } from "@/components/ui";
 import {
   decideAction,
   deliverAction,
@@ -9,8 +9,16 @@ import {
   notifyAction,
 } from "../actions";
 
-// Claim lifecycle console: every control renders only for the role + state
-// combination allowed to use it; the service re-enforces both server-side.
+const ROLE_LABELS: Record<string, string> = {
+  DEPOSITOR: "Depositor (vendor)",
+  AGENT: "Escrow agent",
+  BENEFICIARY: "Beneficiary",
+  AUDITOR: "Auditor",
+};
+
+// Claim lifecycle console (docs/design.md §6): KeyValue master block + plain
+// evidence rows + the ONE action panel valid for the current role+state.
+// The service re-enforces both server-side.
 export default async function ReleaseDetailPage({
   params,
 }: {
@@ -30,39 +38,84 @@ export default async function ReleaseDetailPage({
   } | null) ?? {};
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="mx-auto max-w-3xl space-y-4">
       <PageHeader
         title={`${request.trigger}`}
-        sub={`${request.agreement.vendorName} → ${request.agreement.beneficiaryName} · filed by ${request.filedBy.email} · ${request.createdAt.toISOString().slice(0, 10)}`}
+        sub={`${request.agreement.vendorName} → ${request.agreement.beneficiaryName}`}
         actions={<ReleaseBadge status={request.status} />}
       />
 
+      <Card title="Filing">
+        <KeyValue
+          rows={[
+            ["Filed by", request.filedBy.email],
+            [
+              "Filed on",
+              <span key="filed" className="font-mono">
+                {request.createdAt.toISOString().slice(0, 10)}
+              </span>,
+            ],
+            ["Your role", ROLE_LABELS[role] ?? role],
+            ...(request.notifiedBy
+              ? ([
+                  ["Notified by", request.notifiedBy.email],
+                  ...(request.disputeUntil
+                    ? ([[
+                        "Dispute until",
+                        <span key="window" className="font-mono">
+                          {request.disputeUntil.toISOString().slice(0, 10)}
+                        </span>,
+                      ]] as [string, React.ReactNode][])
+                    : []),
+                ] as [string, React.ReactNode][])
+              : []),
+            ...(request.decidedBy
+              ? ([
+                  ["Decided by", request.decidedBy.email],
+                  [
+                    "Decided on",
+                    <span key="decided" className="font-mono">
+                      {request.decidedAt?.toISOString().slice(0, 10)}
+                    </span>,
+                  ],
+                ] as [string, React.ReactNode][])
+              : []),
+            ...(request.deliveryNote
+              ? ([
+                  ["Delivery", request.deliveryNote],
+                ] as [string, React.ReactNode][])
+              : []),
+          ]}
+        />
+      </Card>
+
       <Card title="Evidence">
-        <p className="text-sm text-stone-800">{evidence.summary ?? "(none)"}</p>
+        <p className="text-[13px] text-tx-hi">{evidence.summary ?? "(none)"}</p>
         {(evidence.tickets ?? []).length > 0 && (
-          <p className="mt-1 font-mono text-xs text-stone-500">
-            {evidence.tickets!.join(", ")}
+          <p className="mt-1 font-mono text-xs text-tx-lo">
+            {evidence.tickets!.join(" · ")}
           </p>
         )}
         {evidence.dispute && (
-          <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm">
-            <p className="font-semibold text-orange-900">Vendor counter-evidence</p>
-            <p className="mt-0.5 text-orange-900/80">{evidence.dispute.note}</p>
+          <div className="mt-3 border-l-2 border-warn pl-3">
+            <p className="text-[13px] text-tx-mid">{evidence.dispute.note}</p>
+            <p className="mt-0.5 text-xs text-tx-lo">
+              vendor counter-evidence · {evidence.dispute.at?.slice(0, 10)}
+            </p>
           </div>
         )}
       </Card>
 
       {request.status === "NOTIFIED" && daysLeft != null && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-          Dispute window: <strong>{daysLeft} day(s) remaining</strong>
-          {request.notifiedBy ? ` · notified by ${request.notifiedBy.email}` : ""}.
-        </div>
+        <p className="text-[13px] text-warn">
+          Dispute window: {daysLeft} day(s) remaining — decide or the window lapses.
+        </p>
       )}
 
       {request.status === "FILED" && role === "AGENT" && (
         <Card
           title="Accept for processing"
-          sub="Notifies the vendor and opens the contractual dispute window. You will be recorded as notifier — and therefore barred from deciding this claim (maker-checker)."
+          sub="Opens the contractual dispute window. You become the notifier and are barred from deciding this claim (maker-checker)."
         >
           <form
             action={async () => {
@@ -80,7 +133,7 @@ export default async function ReleaseDetailPage({
       {request.status === "NOTIFIED" &&
         (role === "DEPOSITOR" || role === "AGENT") && (
           <Card title="Dispute this claim">
-            <form action={disputeAction.bind(null, request.id)} className="space-y-3 text-sm">
+            <form action={disputeAction.bind(null, request.id)} className="space-y-3">
               <label className="field">
                 <span>Counter-evidence</span>
                 <textarea name="note" required rows={3} />
@@ -96,15 +149,15 @@ export default async function ReleaseDetailPage({
         role === "AGENT" && (
           <Card
             title="Decide this claim"
-            sub="Maker-checker enforced: you may not decide if you filed or notified this claim."
+            sub="Maker-checker: you may not decide a claim you filed or notified."
           >
-            <form action={decideAction.bind(null, request.id)} className="space-y-3 text-sm">
+            <form action={decideAction.bind(null, request.id)} className="space-y-3">
               <label className="field">
                 <span>Rationale</span>
                 <textarea name="rationale" required rows={3} />
               </label>
               <div className="flex flex-wrap gap-2">
-                <button type="submit" name="decision" value="approve" className="btn-success">
+                <button type="submit" name="decision" value="approve" className="btn-primary">
                   Approve release
                 </button>
                 <button type="submit" name="decision" value="deny" className="btn-danger">
@@ -116,11 +169,8 @@ export default async function ReleaseDetailPage({
         )}
 
       {request.status === "APPROVED" && role === "AGENT" && (
-        <Card
-          title="Record secure delivery"
-          className="border-emerald-300 bg-emerald-50/60"
-        >
-          <form action={deliverAction.bind(null, request.id)} className="space-y-3 text-sm">
+        <Card title="Record secure delivery">
+          <form action={deliverAction.bind(null, request.id)} className="space-y-3">
             <label className="field">
               <span>Handover reference</span>
               <input
@@ -130,24 +180,17 @@ export default async function ReleaseDetailPage({
                 placeholder="e.g. encrypted vault transfer #4821, confirmed by beneficiary"
               />
             </label>
-            <button type="submit" className="btn-success">
+            <button type="submit" className="btn-primary">
               Mark delivered
             </button>
           </form>
         </Card>
       )}
 
-      {request.status === "DELIVERED" && (
-        <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">
-          <strong>Delivered</strong>
-          {request.deliveryNote ? `: ${request.deliveryNote}` : "."}
-          {request.decidedBy ? ` Decided by ${request.decidedBy.email}.` : ""}
-        </div>
-      )}
       {request.status === "DENIED" && (
-        <div className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-stone-600">
+        <p className="text-[13px] text-tx-mid">
           Claim denied{request.decidedBy ? ` by ${request.decidedBy.email}` : ""}.
-        </div>
+        </p>
       )}
     </div>
   );

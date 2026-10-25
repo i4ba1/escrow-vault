@@ -1,31 +1,29 @@
 import { Suspense } from "react";
 import { requireAppSession } from "@/lib/rbac";
-import { PageHeader } from "@/components/ui";
 import { Dashboard } from "./dashboard.client";
 
-// Portal home: server-rendered greeting (role/tenant from the verified
-// session) plus the client-side health dashboard, which queries the same
-// GraphQL API the Playwright suite drives.
+// Portal overview: server-rendered greeting (verified session) + client
+// dashboard (§6) which queries the same GraphQL API the e2e suite drives.
 export default async function PortalHome() {
   const session = await requireAppSession();
   const { user } = session;
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Escrow health"
-        sub={`${user.email} · ${user.appRole} · ${user.tenantSlug}`}
-      />
-      <Suspense
-        fallback={
-          <div className="grid gap-4 md:grid-cols-2" aria-busy="true">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-56 animate-pulse rounded-xl border border-stone-200 bg-white" />
-            ))}
-          </div>
-        }
-      >
+    <div className="space-y-4">
+      <p className="text-[13px] text-tx-lo">
+        {user.email} · {user.appRole} · <span className="font-mono">{user.tenantSlug}</span>
+      </p>
+      <Suspense fallback={<SkeletonFallback />}>
         <Dashboard />
       </Suspense>
+    </div>
+  );
+}
+
+function SkeletonFallback() {
+  return (
+    <div className="space-y-4" aria-busy="true">
+      <div className="h-20 animate-pulse rounded-[6px] border border-line bg-panel" />
+      <div className="h-56 animate-pulse rounded-[6px] border border-line bg-panel" />
     </div>
   );
 }

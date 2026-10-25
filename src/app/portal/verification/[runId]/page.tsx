@@ -1,20 +1,14 @@
 import { notFound } from "next/navigation";
 import { requireAppSession } from "@/lib/rbac";
-import {
-  Card,
-  PageHeader,
-  RunBadge,
-  StatusBadge,
-  TierBadge,
-} from "@/components/ui";
+import { Card, KeyValue, PageHeader, RunBadge, TierBadge } from "@/components/ui";
 import {
   decideAction,
   executeRunAction,
   getPortalRun,
 } from "../actions";
 
-// Run detail: findings ledger, certificate, and the agent controls valid for
-// the current state (execute when QUEUED, sign-off when CERTIFIED+RUNNING).
+// Run detail (docs/design.md §6): checks as rows — pill + label + one-line
+// detail — not boxes. Certificate strip only when issued.
 export default async function RunDetailPage({
   params,
 }: {
@@ -29,10 +23,10 @@ export default async function RunDetailPage({
   const findings = (run.findings as { checks?: { name: string; pass: boolean; detail: string }[] } | null)?.checks ?? [];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="mx-auto max-w-3xl space-y-4">
       <PageHeader
-        title={`${run.tier} verification`}
-        sub={`${run.deposit.agreement.vendorName} → ${run.deposit.agreement.beneficiaryName} · v${run.deposit.version}`}
+        title={`${run.tier} run`}
+        sub={`${run.deposit.agreement.vendorName} v${run.deposit.version}`}
         actions={
           <>
             <TierBadge tier={run.tier} />
@@ -41,23 +35,18 @@ export default async function RunDetailPage({
         }
       />
 
-      <Card title={`Checks (${findings.length})`}>
+      <Card title={`Checks · ${findings.length}`}>
         {findings.length === 0 ? (
-          <p className="text-sm text-stone-500">Not executed yet.</p>
+          <p className="text-[13px] text-tx-lo">Not executed yet.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="divide-y divide-line">
             {findings.map((c) => (
-              <li
-                key={c.name}
-                className={`rounded-lg border p-3 text-sm ${
-                  c.pass ? "border-emerald-200 bg-emerald-50/60" : "border-rose-200 bg-rose-50/60"
-                }`}
-              >
-                <span className={`font-semibold ${c.pass ? "text-emerald-700" : "text-rose-700"}`}>
+              <li key={c.name} className="flex flex-wrap items-baseline gap-x-2 py-2 text-[13px]">
+                <span className={`font-mono text-xs font-medium ${c.pass ? "text-ok" : "text-bad"}`}>
                   {c.pass ? "PASS" : "FAIL"}
-                </span>{" "}
-                <span className="font-medium text-stone-900">{c.name}</span>
-                <p className="mt-0.5 text-stone-500">{c.detail}</p>
+                </span>
+                <span className="font-mono text-xs text-tx-hi">{c.name}</span>
+                <span className="w-full text-tx-lo">{c.detail}</span>
               </li>
             ))}
           </ul>
@@ -65,21 +54,28 @@ export default async function RunDetailPage({
       </Card>
 
       {run.certificate && (
-        <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-sm">
-          <h2 className="font-semibold text-emerald-950">Resilience certificate</h2>
-          <p className="mt-1 font-mono text-base font-bold text-emerald-900">
-            {run.certificate.serialNo}
-          </p>
-          <p className="mt-1 text-emerald-800">
-            Issued {run.certificate.issuedAt.toISOString().slice(0, 10)} ·{" "}
-            <a
-              className="font-medium underline underline-offset-4"
-              href={`/verify/${run.certificate.serialNo}`}
-            >
-              public verification page
-            </a>
-          </p>
-        </div>
+        <Card title="Certificate">
+          <KeyValue
+            rows={[
+              [
+                "Serial",
+                <a
+                  key="serial"
+                  href={`/verify/${run.certificate.serialNo}`}
+                  className="font-mono text-accent transition-colors hover:opacity-80"
+                >
+                  {run.certificate.serialNo} →
+                </a>,
+              ],
+              [
+                "Issued",
+                <span key="issued" className="font-mono">
+                  {run.certificate.issuedAt.toISOString().slice(0, 10)}
+                </span>,
+              ],
+            ]}
+          />
+        </Card>
       )}
 
       {isAgent && run.status === "QUEUED" && (
@@ -98,10 +94,9 @@ export default async function RunDetailPage({
       {isAgent && run.tier === "CERTIFIED" && run.status === "RUNNING" && (
         <Card
           title="Human build-test sign-off"
-          sub="Automated pre-checks passed. Confirm you compiled and ran the application from this deposit, then sign off."
-          className="border-amber-300 bg-amber-50"
+          sub="Confirm you compiled and ran the application from this deposit."
         >
-          <form action={decideAction.bind(null, run.id)} className="space-y-3 text-sm">
+          <form action={decideAction.bind(null, run.id)} className="space-y-3">
             <label className="field">
               <span>Review note</span>
               <input
@@ -112,7 +107,7 @@ export default async function RunDetailPage({
               />
             </label>
             <div className="flex flex-wrap gap-2">
-              <button type="submit" name="decision" value="approve" className="btn-success">
+              <button type="submit" name="decision" value="approve" className="btn-primary">
                 Approve &amp; issue certificate
               </button>
               <button type="submit" name="decision" value="reject" className="btn-danger">
@@ -124,9 +119,8 @@ export default async function RunDetailPage({
       )}
 
       {!isAgent && (
-        <p className="flex items-center gap-2 text-sm text-stone-500">
-          <StatusBadge tone="zinc">read-only</StatusBadge>
-          Execution and sign-off need the agent role.
+        <p className="text-[13px] text-tx-lo">
+          Read-only — execution and sign-off need the agent role.
         </p>
       )}
     </div>

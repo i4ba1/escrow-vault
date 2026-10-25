@@ -102,12 +102,12 @@ export function UploadForm({ depositId }: { depositId: string }) {
           {busy ? `${phase.name}…` : "Upload"}
         </button>
         {phase.name === "done" && (
-          <span className="text-emerald-700">
+          <span className="text-[13px] text-ok">
             Stored — integrity scan will pick it up shortly.
           </span>
         )}
         {phase.name === "error" && (
-          <span className="text-rose-700">{phase.message}</span>
+          <span className="text-[13px] text-bad">{phase.message}</span>
         )}
       </div>
     </form>

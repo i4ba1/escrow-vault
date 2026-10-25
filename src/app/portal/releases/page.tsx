@@ -4,49 +4,50 @@ import { getPortalReleases } from "./actions";
 
 export default async function ReleasesPage() {
   const requests = await getPortalReleases();
-  const open = requests.filter(
+  const active = requests.filter(
     (r) => r.status !== "DELIVERED" && r.status !== "DENIED",
   );
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeader
-        title="Release requests"
-        sub={`${open.length} active · ${requests.length} total`}
+        title="Releases"
+        sub={`${active.length} active · ${requests.length} total`}
         actions={<ActionLink href="/portal/releases/new">File a claim</ActionLink>}
       />
       {requests.length === 0 ? (
-        <EmptyState
-          title="No release claims"
-          hint="Beneficiaries file here when a contractual trigger fires."
-          action={<ActionLink href="/portal/releases/new">File a claim</ActionLink>}
-        />
+        <Card>
+          <EmptyState
+            title="No release claims"
+            hint="Beneficiaries file here when a contractual trigger fires."
+          />
+        </Card>
       ) : (
-        <Card className="overflow-x-auto p-0 sm:p-0">
-          <table className="ev-table m-5 w-[calc(100%-2.5rem)]">
+        <Card className="overflow-x-auto">
+          <table className="ev-table">
             <thead>
               <tr>
                 <th>Agreement</th>
                 <th>Trigger</th>
-                <th>Status</th>
-                <th>Filed</th>
+                <th className="text-right">Status</th>
+                <th className="text-right">Filed</th>
               </tr>
             </thead>
             <tbody>
               {requests.map((r) => (
-                <tr key={r.id} className="transition-colors hover:bg-stone-50">
+                <tr key={r.id} className="transition-colors hover:bg-raise/50">
                   <td>
                     <Link
                       href={`/portal/releases/${r.id}`}
-                      className="font-medium text-emerald-800 underline-offset-4 hover:underline"
+                      className="text-tx-hi transition-colors hover:text-accent"
                     >
                       {r.agreement.vendorName} → {r.agreement.beneficiaryName}
                     </Link>
                   </td>
-                  <td className="text-stone-600">{r.trigger}</td>
-                  <td>
+                  <td className="font-mono text-xs text-tx-mid">{r.trigger}</td>
+                  <td className="text-right">
                     <ReleaseBadge status={r.status} />
                   </td>
-                  <td className="text-stone-500 tabular-nums">
+                  <td className="text-right font-mono text-tx-lo tabular-nums">
                     {r.createdAt.toISOString().slice(0, 10)}
                   </td>
                 </tr>

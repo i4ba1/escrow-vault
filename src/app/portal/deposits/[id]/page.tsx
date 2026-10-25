@@ -13,8 +13,8 @@ import { escalateAction } from "../../verification/actions";
 import { activateDepositAction, getPortalDeposit } from "../actions";
 import { UploadForm } from "./upload-form.client";
 
-// Deposit wizard, step 2: upload assets (presigned PUT straight to storage),
-// watch the integrity scan flip them to PASS, then activate.
+// Deposit detail (docs/design.md §6): assets table with upload in the panel
+// footer, verification ladder as compact rows, actions as primary CTA.
 export default async function DepositDetailPage({
   params,
 }: {
@@ -41,7 +41,7 @@ export default async function DepositDetailPage({
       : null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeader
         title={`Deposit v${deposit.version}`}
         sub={`${deposit.agreement.vendorName} → ${deposit.agreement.beneficiaryName}`}
@@ -49,11 +49,18 @@ export default async function DepositDetailPage({
       />
 
       <Card
-        title={`Assets (${deposit.assets.length})`}
-        sub="Files are hash-verified by the scan worker before they count."
+        title="Assets"
+        sub="Hash-verified by the scan worker before they count."
+        action={
+          deposit.assets.length > 0 && (
+            <span className="font-mono text-xs text-tx-lo">
+              {deposit.assets.length} file{deposit.assets.length === 1 ? "" : "s"}
+            </span>
+          )
+        }
       >
         {deposit.assets.length === 0 ? (
-          <p className="text-sm text-stone-500">No files uploaded yet.</p>
+          <p className="text-[13px] text-tx-lo">No files uploaded yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="ev-table">
@@ -63,19 +70,21 @@ export default async function DepositDetailPage({
                   <th>Type</th>
                   <th>Size</th>
                   <th>SHA-256</th>
-                  <th>Scan</th>
+                  <th className="text-right">Scan</th>
                 </tr>
               </thead>
               <tbody>
                 {deposit.assets.map((a) => (
                   <tr key={a.id}>
-                    <td className="font-medium">{a.filename}</td>
-                    <td className="text-stone-500">{a.type}</td>
-                    <td className="tabular-nums">{a.sizeBytes.toString()} B</td>
-                    <td className="font-mono text-xs text-stone-500">
+                    <td className="text-tx-hi">{a.filename}</td>
+                    <td className="text-tx-mid">{a.type}</td>
+                    <td className="font-mono text-tx-mid tabular-nums">
+                      {a.sizeBytes.toString()} B
+                    </td>
+                    <td className="font-mono text-xs text-tx-lo">
                       {a.sha256.slice(0, 16)}…
                     </td>
-                    <td>
+                    <td className="text-right">
                       <ScanBadge status={a.scanStatus} />
                     </td>
                   </tr>
@@ -84,31 +93,37 @@ export default async function DepositDetailPage({
             </table>
           </div>
         )}
+        {(deposit.status === "DRAFT" || deposit.status === "UPLOADING") && (
+          <div className="mt-4 border-t border-line pt-4">
+            <UploadForm depositId={deposit.id} />
+          </div>
+        )}
       </Card>
 
-      {(deposit.status === "DRAFT" || deposit.status === "UPLOADING") && (
-        <Card title="Upload a file" sub="Hashed in your browser, sent straight to encrypted storage.">
-          <UploadForm depositId={deposit.id} />
-        </Card>
-      )}
-
-      <Card title="Verification runs" sub="Tier history for this deposit.">
+      <Card title="Verification">
         {deposit.verificationRuns.length === 0 ? (
-          <p className="text-sm text-stone-500">
+          <p className="text-[13px] text-tx-lo">
             Runs appear once every asset passes the integrity scan.
           </p>
         ) : (
-          <ul className="divide-y divide-stone-100 text-sm">
+          <ul className="divide-y divide-line">
             {deposit.verificationRuns.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center gap-2 py-2">
+              <li key={r.id} className="flex flex-wrap items-center gap-2 py-2 text-[13px]">
                 <TierBadge tier={r.tier} />
-                <span className="font-medium">{r.status}</span>
-                {r.certificate && (
+                <span className="text-tx-mid">{r.status}</span>
+                {r.certificate ? (
                   <Link
                     href={`/verify/${r.certificate.serialNo}`}
-                    className="font-mono text-xs text-emerald-800 underline-offset-4 hover:underline"
+                    className="ml-auto font-mono text-xs text-tx-lo transition-colors hover:text-accent"
                   >
-                    {r.certificate.serialNo}
+                    {r.certificate.serialNo} →
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/portal/verification/${r.id}`}
+                    className="ml-auto text-xs text-tx-lo transition-colors hover:text-accent"
+                  >
+                    open run →
                   </Link>
                 )}
               </li>
@@ -118,35 +133,30 @@ export default async function DepositDetailPage({
       </Card>
 
       {isAgent && upcomingTier && (
-        <Card
-          title={`Request ${upcomingTier} verification`}
-          sub="Opens the next tier run. Lower tiers must have passed — enforced server-side."
-        >
-          <form action={escalateAction.bind(null, deposit.id, upcomingTier)}>
-            <button type="submit" className="btn-primary">
-              Escalate to {upcomingTier}
-            </button>
-          </form>
-        </Card>
+        <form action={escalateAction.bind(null, deposit.id, upcomingTier)}>
+          <button type="submit" className="btn-primary">
+            Escalate to {upcomingTier}
+          </button>
+        </form>
       )}
 
-      {canActivate ? (
+      {canActivate && (
         <form
           action={async () => {
             "use server";
             await activateDepositAction(deposit.id);
           }}
         >
-          <button type="submit" className="btn-success">
+          <button type="submit" className="btn-primary">
             Activate deposit
           </button>
         </form>
-      ) : (
-        deposit.status !== "ACTIVE" && (
-          <p className="text-sm text-stone-500">
-            Activation unlocks once every asset shows SCAN PASS.
-          </p>
-        )
+      )}
+
+      {!canActivate && deposit.status !== "ACTIVE" && !isAgent && (
+        <p className="text-[13px] text-tx-lo">
+          Activation unlocks once every asset shows SCAN PASS.
+        </p>
       )}
     </div>
   );
