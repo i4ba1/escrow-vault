@@ -14,8 +14,9 @@ Architecture with diagrams: [`docs/architecture.md`](docs/architecture.md).
 
 ## Demo
 
-Seeded portal tour (agent view → deposits → verification → releases → audit →
-public certificate), recorded with Playwright against `pnpm db:seed` data:
+Seeded portal tour (dashboard → deposits → verification → releases → audit →
+public certificate), recorded with Playwright against `pnpm db:seed` data in
+the design-system look from [`docs/design.md`](docs/design.md):
 
 ![EscrowVault demo: dashboard, deposits, verification, releases, audit, certificate](docs/demo.gif)
 
