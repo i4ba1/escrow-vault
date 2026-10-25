@@ -57,31 +57,28 @@ export default async function VerifyCertificatePage({
     ["Issued", certificate.issuedAt.toISOString().slice(0, 10)],
   ];
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100">
+    <div className="min-h-screen bg-app text-tx-hi">
       <main className="mx-auto max-w-xl px-4 py-16">
-        <p className="text-center text-xs font-semibold tracking-widest text-emerald-400 uppercase">
+        <p className="text-center text-xs uppercase tracking-wider text-accent">
           Software Resilience Certificate
         </p>
-        <h1 className="mt-2 text-center font-mono text-3xl font-bold tracking-tight text-white">
+        <h1 className="mt-2 text-center font-mono text-xl font-medium tracking-tight tabular-nums">
           {certificate.serialNo}
         </h1>
-        <div className="mt-8 overflow-hidden rounded-xl border border-white/10 bg-white/5">
-          {rows.map(([label, value], i) => (
-            <div
-              key={label}
-              className={`flex items-center justify-between px-5 py-3 text-sm ${
-                i === rows.length - 1 ? "" : "border-b border-white/10"
-              }`}
-            >
-              <dt className="text-stone-400">{label}</dt>
-              <dd className="font-medium text-white">{value}</dd>
-            </div>
-          ))}
+        <div className="card mt-8 px-5">
+          <dl className="divide-y divide-line">
+            {rows.map(([label, value]) => (
+              <div key={label} className="flex items-baseline justify-between py-2.5">
+                <dt className="text-[13px] text-tx-lo">{label}</dt>
+                <dd className="text-[13px] font-medium text-tx-hi">{value}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-        <p className="mt-6 text-center text-xs text-stone-500">
+        <p className="mt-6 text-center text-xs text-tx-lo">
           Verify this serial any time at{" "}
           <span className="font-mono">/verify/{certificate.serialNo}</span> ·{" "}
-          <Link href="/" className="underline underline-offset-4 hover:text-stone-300">
+          <Link href="/" className="transition-colors hover:text-accent">
             EscrowVault
           </Link>
         </p>

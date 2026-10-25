@@ -15,8 +15,9 @@ function isActive(pathname: string, href: string, exact: boolean): boolean {
   return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-// Sidebar (desktop) + top nav (mobile) share one definition so the two never
-// drift apart. Client-side only for the active-state highlight.
+// Sidebar (docs/design.md §5 Nav): h-9 rows, active = raise surface + 2px
+// accent bar at the left edge — not a filled pill. One definition powers both
+// the desktop sidebar and the mobile top bar so they can't drift.
 export function PortalNav({ orientation }: { orientation: "sidebar" | "topbar" }) {
   const pathname = usePathname();
   if (orientation === "topbar") {
@@ -26,10 +27,10 @@ export function PortalNav({ orientation }: { orientation: "sidebar" | "topbar" }
           <Link
             key={item.href}
             href={item.href}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap ${
+            className={`flex h-8 items-center rounded-[6px] px-3 text-[13px] whitespace-nowrap transition-colors ${
               isActive(pathname, item.href, item.exact)
-                ? "bg-stone-900 text-white"
-                : "text-stone-600 hover:bg-stone-200"
+                ? "bg-raise text-tx-hi"
+                : "text-tx-mid hover:text-tx-hi"
             }`}
           >
             {item.label}
@@ -39,20 +40,26 @@ export function PortalNav({ orientation }: { orientation: "sidebar" | "topbar" }
     );
   }
   return (
-    <nav className="mt-6 flex flex-col gap-1 px-3">
-      {ITEMS.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-            isActive(pathname, item.href, item.exact)
-              ? "bg-emerald-600 text-white shadow-sm"
-              : "text-slate-300 hover:bg-white/10 hover:text-white"
-          }`}
-        >
-          {item.label}
-        </Link>
-      ))}
+    <nav className="mt-6 flex flex-col gap-0.5 px-3">
+      {ITEMS.map((item) => {
+        const active = isActive(pathname, item.href, item.exact);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`relative flex h-9 items-center rounded-[6px] px-3 text-[13px] transition-colors ${
+              active
+                ? "bg-raise text-tx-hi"
+                : "text-tx-mid hover:bg-raise/60 hover:text-tx-hi"
+            }`}
+          >
+            {active && (
+              <span className="absolute -left-3 h-4 w-[2px] rounded-full bg-accent" />
+            )}
+            {item.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
