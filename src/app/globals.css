@@ -1,82 +1,141 @@
 @import "tailwindcss";
 
-@theme {
+/* EscrowVault design system v2 — docs/design.md §3.
+   Dark-first, near-monochrome zinc; ONE accent; status colors only in pills,
+   charts and state rows. Light theme derives later by overriding these vars
+   under a .dark/not-dark selector pair — components never hardcode colors. */
+:root {
+  /* surfaces */
+  --bg-app: oklch(0.145 0.005 260);
+  --bg-panel: oklch(0.185 0.006 260);
+  --bg-raise: oklch(0.225 0.007 260);
+
+  /* text */
+  --tx-hi: oklch(0.955 0.002 260);
+  --tx-mid: oklch(0.72 0.004 260);
+  --tx-lo: oklch(0.52 0.004 260);
+
+  /* lines & focus */
+  --line: oklch(0.28 0.007 260);
+  --line-strong: oklch(0.36 0.008 260);
+  --ring: oklch(0.8 0.13 165);
+
+  /* the one accent + status trio + info */
+  --accent: oklch(0.8 0.13 165);
+  --accent-fg: oklch(0.2 0.03 165);
+  --ok: oklch(0.78 0.15 155);
+  --ok-fg: oklch(0.2 0.03 155);
+  --warn: oklch(0.82 0.14 85);
+  --warn-fg: oklch(0.2 0.03 85);
+  --bad: oklch(0.7 0.19 15);
+  --bad-fg: oklch(0.98 0.01 15);
+  --info: oklch(0.75 0.09 230);
+
+  /* charts: two series max (docs/design.md §7) */
+  --chart-1: oklch(0.8 0.13 165);
+  --chart-2: oklch(0.6 0.02 260);
+}
+
+@theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --color-app: var(--bg-app);
+  --color-panel: var(--bg-panel);
+  --color-raise: var(--bg-raise);
+  --color-tx-hi: var(--tx-hi);
+  --color-tx-mid: var(--tx-mid);
+  --color-tx-lo: var(--tx-lo);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ring: var(--ring);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ok: var(--ok);
+  --color-ok-fg: var(--ok-fg);
+  --color-warn: var(--warn);
+  --color-warn-fg: var(--warn-fg);
+  --color-bad: var(--bad);
+  --color-bad-fg: var(--bad-fg);
+  --color-info: var(--info);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
 }
 
 body {
-  @apply bg-stone-100 font-sans text-stone-900 antialiased;
+  @apply bg-app font-sans text-[13px] text-tx-hi antialiased;
 }
 
 ::selection {
-  @apply bg-emerald-200 text-emerald-950;
+  @apply bg-accent/25 text-tx-hi;
 }
 
 @layer components {
-  /* Surface */
+  /* Panel (docs/design.md §5) — was .card; name kept for migration ease */
   .card {
-    @apply rounded-xl border border-stone-200 bg-white p-5 shadow-sm;
+    @apply rounded-[6px] border border-line bg-panel p-4;
   }
-  .card-title {
-    @apply text-sm font-semibold text-stone-900;
-  }
-  .card-sub {
-    @apply mt-0.5 text-sm text-stone-500;
+  .panel-label {
+    @apply text-xs font-medium tracking-wider text-tx-lo uppercase;
   }
 
-  /* Buttons (self-contained: variants repeat the base so no @apply chains) */
+  /* Buttons: default = ghost. One accent-filled primary per screen. */
   .btn {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-[6px] px-3 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-[6px] bg-accent px-3 text-[13px] font-medium text-accent-fg transition-colors hover:bg-accent/85 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-success {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-[6px] bg-ok px-3 text-[13px] font-medium text-ok-fg transition-colors hover:bg-ok/85 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-danger {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-[6px] bg-bad px-3 text-[13px] font-medium text-bad-fg transition-colors hover:bg-bad/85 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-warn {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-[6px] bg-warn px-3 text-[13px] font-medium text-warn-fg transition-colors hover:bg-warn/85 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-ghost {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-[6px] border border-line bg-transparent px-3 text-[13px] font-medium text-tx-hi transition-colors hover:border-line-strong hover:bg-raise disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   /* Forms */
   .field {
-    @apply block text-sm;
+    @apply block;
   }
   .field > span {
-    @apply font-medium text-stone-700;
+    @apply mb-1 block text-[13px] font-medium text-tx-mid;
   }
   .field input,
   .field select,
   .field textarea {
-    @apply mt-1 block w-full rounded-lg border border-stone-300 bg-white p-2 text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none;
+    @apply block w-full rounded-[6px] border border-line bg-raise px-2.5 py-1.5 text-tx-hi placeholder:text-tx-lo focus:border-line-strong focus:ring-1 focus:ring-ring/60 focus:outline-none;
   }
 
-  /* Data tables */
+  /* Data tables: 44px rows, thin dividers, mono numerics */
   .ev-table {
-    @apply w-full text-left text-sm;
+    @apply w-full text-left text-[13px];
   }
   .ev-table thead tr {
-    @apply border-b border-stone-200 text-xs tracking-wide text-stone-500 uppercase;
+    @apply border-b border-line;
   }
   .ev-table th {
-    @apply py-2 pr-4 font-semibold;
+    @apply py-2 pr-4 font-medium text-tx-lo;
   }
   .ev-table td {
-    @apply border-b border-stone-100 py-2.5 pr-4 align-top;
+    @apply border-b border-line py-2.5 pr-4 align-top;
   }
   .ev-table tbody tr:last-child td {
     @apply border-b-0;
   }
 
-  /* Status badge base (tones come from StatusBadge) */
+  /* Status pill base; tones come from StatusBadge (bg/text/border triplets) */
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap;
+    @apply inline-flex h-5 items-center rounded-full border px-2 font-mono text-[11px] font-medium whitespace-nowrap;
+  }
+
+  /* Stat tile: value is mono; parent supplies grid + dividers */
+  .stat-value {
+    @apply font-mono text-2xl font-medium tracking-tight tabular-nums;
   }
 }

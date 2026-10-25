@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-// Shared primitives: every portal page composes these instead of ad-hoc
-// Tailwind, so the visual language stays consistent as the app grows.
+// Shared primitives per docs/design.md §5. Pages compose these instead of
+// ad-hoc Tailwind so the visual language stays consistent. Same export names
+// as v1 so page migration is mechanical.
 
 export function PageHeader({
   title,
@@ -14,12 +15,12 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-stone-950">{title}</h1>
-        {sub && <p className="mt-1 text-sm text-stone-500">{sub}</p>}
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-baseline gap-3">
+        <h1 className="text-[15px] font-medium text-tx-hi">{title}</h1>
+        {sub && <span className="text-[13px] text-tx-lo">{sub}</span>}
       </div>
-      {actions && <div className="flex gap-2">{actions}</div>}
+      {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
   );
 }
@@ -29,18 +30,25 @@ export function Card({
   sub,
   children,
   className = "",
+  action,
 }: {
   title?: string;
   sub?: string;
   children: ReactNode;
   className?: string;
+  action?: ReactNode;
 }) {
   return (
     <section className={`card ${className}`}>
-      {(title || sub) && (
-        <header className="mb-3">
-          {title && <h2 className="card-title">{title}</h2>}
-          {sub && <p className="card-sub">{sub}</p>}
+      {(title || action) && (
+        <header
+          className={`${title ? "mb-3 flex items-center justify-between gap-2" : ""}`}
+        >
+          <div>
+            {title && <h2 className="panel-label">{title}</h2>}
+            {sub && <p className="mt-0.5 text-[13px] text-tx-lo">{sub}</p>}
+          </div>
+          {action}
         </header>
       )}
       {children}
@@ -48,27 +56,14 @@ export function Card({
   );
 }
 
-type Tone =
-  | "zinc"
-  | "amber"
-  | "sky"
-  | "emerald"
-  | "rose"
-  | "violet"
-  | "stone"
-  | "teal"
-  | "orange";
+type Tone = "zinc" | "amber" | "sky" | "emerald" | "rose";
 
 const TONES: Record<Tone, string> = {
-  zinc: "bg-zinc-100 text-zinc-700",
-  amber: "bg-amber-100 text-amber-800",
-  sky: "bg-sky-100 text-sky-800",
-  emerald: "bg-emerald-100 text-emerald-800",
-  rose: "bg-rose-100 text-rose-800",
-  violet: "bg-violet-100 text-violet-800",
-  stone: "bg-stone-200 text-stone-600",
-  teal: "bg-teal-100 text-teal-800",
-  orange: "bg-orange-100 text-orange-800",
+  zinc: "border-line bg-tx-mid/10 text-tx-mid",
+  amber: "border-warn/25 bg-warn/12 text-warn",
+  sky: "border-info/25 bg-info/12 text-info",
+  emerald: "border-ok/25 bg-ok/12 text-ok",
+  rose: "border-bad/25 bg-bad/12 text-bad",
 };
 
 export function StatusBadge({ tone, children }: { tone: Tone; children: ReactNode }) {
@@ -85,7 +80,7 @@ const DEPOSIT_TONES: Record<string, Tone> = {
   SCANNING: "sky",
   READY: "sky",
   ACTIVE: "emerald",
-  SUPERSEDED: "stone",
+  SUPERSEDED: "zinc",
 };
 
 const RUN_TONES: Record<string, Tone> = {
@@ -93,7 +88,7 @@ const RUN_TONES: Record<string, Tone> = {
   RUNNING: "amber",
   PASSED: "emerald",
   FAILED: "rose",
-  EXPIRED: "stone",
+  EXPIRED: "zinc",
 };
 
 const SCAN_TONES: Record<string, Tone> = {
@@ -105,18 +100,18 @@ const SCAN_TONES: Record<string, Tone> = {
 const RELEASE_TONES: Record<string, Tone> = {
   FILED: "sky",
   NOTIFIED: "amber",
-  DISPUTED: "orange",
-  UNDISPUTED: "stone",
+  DISPUTED: "sky",
+  UNDISPUTED: "zinc",
   APPROVED: "emerald",
   DENIED: "rose",
-  DELIVERED: "teal",
+  DELIVERED: "emerald",
 };
 
 const ROLE_TONES: Record<string, Tone> = {
-  DEPOSITOR: "sky",
-  AGENT: "violet",
-  BENEFICIARY: "amber",
-  AUDITOR: "stone",
+  DEPOSITOR: "zinc",
+  AGENT: "sky",
+  BENEFICIARY: "zinc",
+  AUDITOR: "zinc",
 };
 
 export function DepositBadge({ status }: { status: string }) {
@@ -140,9 +135,9 @@ export function RoleBadge({ role }: { role: string }) {
 }
 
 export function TierBadge({ tier }: { tier: string }) {
-  const tone: Tone =
-    tier === "CERTIFIED" ? "violet" : tier === "VERIFIED" ? "sky" : "zinc";
-  return <StatusBadge tone={tone}>{tier}</StatusBadge>;
+  return (
+    <StatusBadge tone={tier === "CERTIFIED" ? "sky" : "zinc"}>{tier}</StatusBadge>
+  );
 }
 
 export function EmptyState({
@@ -155,10 +150,10 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-stone-300 bg-white/60 px-6 py-10 text-center">
-      <p className="font-medium text-stone-700">{title}</p>
-      {hint && <p className="mt-1 text-sm text-stone-500">{hint}</p>}
-      {action && <div className="mt-4 flex justify-center">{action}</div>}
+    <div className="flex flex-col items-center gap-1 py-8 text-center">
+      <p className="text-[13px] text-tx-mid">{title}</p>
+      {hint && <p className="text-[13px] text-tx-lo">{hint}</p>}
+      {action && <div className="mt-2 flex">{action}</div>}
     </div>
   );
 }
@@ -168,5 +163,89 @@ export function ActionLink({ href, children }: { href: string; children: ReactNo
     <Link href={href} className="btn-primary">
       {children}
     </Link>
+  );
+}
+
+export function StatTile({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: string;
+  href: string;
+}) {
+  return (
+    <div className="px-4 py-3 first:pl-0">
+      <p className="panel-label">{label}</p>
+      <p className="stat-value mt-1">{value}</p>
+      <Link
+        href={href}
+        className="mt-0.5 inline-block text-[13px] text-tx-lo transition-colors hover:text-accent"
+      >
+        {label === "Open runs" ? "Queue →" : "View →"}
+      </Link>
+    </div>
+  );
+}
+
+export function KeyValue({
+  rows,
+}: {
+  rows: [string, ReactNode][];
+}) {
+  return (
+    <dl className="divide-y divide-line">
+      {rows.map(([key, value]) => (
+        <div key={key} className="flex items-baseline justify-between gap-4 py-2 first:pt-0 last:pb-0">
+          <dt className="shrink-0 text-[13px] text-tx-lo">{key}</dt>
+          <dd className="min-w-0 truncate text-right text-[13px] text-tx-hi">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+export interface TimelineEvent {
+  id: string;
+  entity: string;
+  entityId: string;
+  action: string;
+  actorEmail: string | null;
+  at: Date;
+}
+
+// Audit timeline primitive (docs/design.md §5): day-grouped, one line per
+// event. Consumed by the portal audit page.
+export function Timeline({ events }: { events: TimelineEvent[] }) {
+  return (
+    <ol className="border-l border-line">
+      {events.map((e, index) => {
+        const day = e.at.toISOString().slice(0, 10);
+        const prevDay = index > 0 ? events[index - 1].at.toISOString().slice(0, 10) : null;
+        const showDay = day !== prevDay;
+        return (
+          <li key={e.id} className="relative ml-2 pl-4">
+            {showDay && (
+              <p className="pt-4 pb-2 text-xs text-tx-lo tabular-nums">{day}</p>
+            )}
+            <span
+              className={`absolute h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-tx-mid ${
+                showDay ? "top-[46px]" : "top-[5px]"
+              }`}
+            />
+            <p className="py-1 text-[13px]">
+              <span className="font-medium text-tx-hi">{e.action}</span>{" "}
+              <span className="text-tx-mid">{e.entity}</span>{" "}
+              <span className="font-mono text-xs text-tx-lo">{e.entityId.slice(0, 8)}</span>
+            </p>
+            <p className="pb-2 text-xs text-tx-lo tabular-nums">
+              {e.at.toISOString().replace("T", " ").slice(11, 19)}Z ·{" "}
+              {e.actorEmail ?? "automated"}
+            </p>
+          </li>
+        );
+      })}
+    </ol>
   );
 }

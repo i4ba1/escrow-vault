@@ -125,7 +125,7 @@ export default async function RunDetailPage({
 
       {!isAgent && (
         <p className="flex items-center gap-2 text-sm text-stone-500">
-          <StatusBadge tone="stone">read-only</StatusBadge>
+          <StatusBadge tone="zinc">read-only</StatusBadge>
           Execution and sign-off need the agent role.
         </p>
       )}
